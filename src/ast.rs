@@ -12,4 +12,6 @@ pub use nodes::{
     BlockStatement,
     IfExpression,
     PrefixExpression,
+    FunctionLiteral,
+    CallExpression,
 };

@@ -6,6 +6,7 @@ pub enum TokenType {
     Ident,
     Int,
     Float,
+    Function,
 
     Assign,
     Plus,
@@ -28,6 +29,7 @@ pub enum TokenType {
     Lparen, Rparen,
     Lbrace, Rbrace,
     Semicolon,
+    Comma,
 
     Let,
     True, False,

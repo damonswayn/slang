@@ -20,7 +20,7 @@ impl Display for Program {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     Let(LetStatement),
     Expression(ExpressionStatement),
@@ -35,7 +35,7 @@ impl Display for Statement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LetStatement {
     pub name: Identifier,
     pub value: Expression,
@@ -47,7 +47,7 @@ impl Display for LetStatement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ExpressionStatement {
     pub expression: Expression,
 }
@@ -58,7 +58,7 @@ impl Display for ExpressionStatement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BlockStatement {
     pub statements: Vec<Statement>,
 }
@@ -74,7 +74,7 @@ impl Display for BlockStatement {
 
 // ---------- Expressions ----------
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Identifier {
     pub value: String,
 }
@@ -85,7 +85,7 @@ impl Display for Identifier {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
@@ -94,6 +94,8 @@ pub enum Expression {
     Infix(InfixExpression),
     If(Box<IfExpression>),
     Prefix(Box<PrefixExpression>),
+    FunctionLiteral(FunctionLiteral),
+    CallExpression(Box<CallExpression>),
 }
 
 impl Display for Expression {
@@ -106,11 +108,13 @@ impl Display for Expression {
             Expression::Infix(infix) => write!(f, "{}", infix),
             Expression::If(ifexpr) => write!(f, "{}", ifexpr),
             Expression::Prefix(prefix) => write!(f, "{}", prefix),
+            Expression::FunctionLiteral(fl) => write!(f, "{}", fl),
+            Expression::CallExpression(call) => write!(f, "{}", call),
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct IntegerLiteral {
     pub value: i64,
 }
@@ -121,7 +125,7 @@ impl Display for IntegerLiteral {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FloatLiteral {
     pub value: f64,
 }
@@ -132,7 +136,7 @@ impl Display for FloatLiteral {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BooleanLiteral {
     pub value: bool,
 }
@@ -143,7 +147,7 @@ impl Display for BooleanLiteral {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct InfixExpression {
     pub left: Box<Expression>,
     pub operator: String,
@@ -156,7 +160,7 @@ impl Display for InfixExpression {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct IfExpression {
     pub condition: Box<Expression>,
     pub consequence: BlockStatement,
@@ -179,7 +183,7 @@ impl Display for IfExpression {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PrefixExpression {
     pub operator: String,
     pub right: Box<Expression>,
@@ -188,6 +192,44 @@ pub struct PrefixExpression {
 impl Display for PrefixExpression {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "({}{})", self.operator, self.right)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionLiteral {
+    pub params: Vec<Identifier>,
+    pub body: BlockStatement,
+}
+
+impl Display for FunctionLiteral {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "fn(")?;
+        for (i, p) in self.params.iter().enumerate() {
+            if i > 0 { write!(f, ", ")?; }
+            write!(f, "{}", p)?;
+        }
+        write!(f, ") {{")?;
+        write!(f, "{}", self.body)?;
+        write!(f, "}}")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CallExpression {
+    pub function: Box<Expression>,    // identifier or fn literal
+    pub arguments: Vec<Expression>,
+}
+
+impl Display for CallExpression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}(", *self.function)?;
+        for (i, arg) in self.arguments.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", arg)?;
+        }
+        write!(f, ")")
     }
 }
 

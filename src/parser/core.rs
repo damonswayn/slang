@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ast::{Program, Statement, Expression, Identifier, IntegerLiteral, InfixExpression, LetStatement, ExpressionStatement, IfExpression, BlockStatement};
+use crate::ast::{Program, Statement, Expression, Identifier, IntegerLiteral, InfixExpression, LetStatement, ExpressionStatement, IfExpression, BlockStatement, FunctionLiteral, CallExpression};
 use crate::ast::nodes::{BooleanLiteral, FloatLiteral, PrefixExpression};
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
@@ -15,6 +15,7 @@ enum Precedence {
     Sum,     // + -
     Product, // * / %
     Prefix, // !x, -x
+    Call, // myFunction(x)
 }
 
 fn precedence_of(ttype: &TokenType) -> Precedence {
@@ -26,6 +27,7 @@ fn precedence_of(ttype: &TokenType) -> Precedence {
         LessThan | GreaterThan | LessEqual | GreaterEqual => Precedence::LessGreater,
         Plus | Minus => Precedence::Sum,
         Mul | Div | Mod => Precedence::Product,
+        Lparen => Precedence::Call,
         _ => Precedence::Lowest,
     }
 }
@@ -68,7 +70,9 @@ impl Parser {
         p.register_prefix(TokenType::If, Parser::parse_if_expression);
         p.register_prefix(TokenType::Bang, Parser::parse_prefix_expression);
         p.register_prefix(TokenType::Minus, Parser::parse_prefix_expression);
+        p.register_prefix(TokenType::Function, Parser::parse_function_literal);
 
+        // register infix parsers
         p.register_infix(TokenType::Equal, Parser::parse_infix_expression);
         p.register_infix(TokenType::NotEqual, Parser::parse_infix_expression);
         p.register_infix(TokenType::LessThan, Parser::parse_infix_expression);
@@ -78,12 +82,13 @@ impl Parser {
         p.register_infix(TokenType::And, Parser::parse_infix_expression);
         p.register_infix(TokenType::Or, Parser::parse_infix_expression);
 
-        // register infix parsers
         p.register_infix(TokenType::Plus, Parser::parse_infix_expression);
         p.register_infix(TokenType::Minus, Parser::parse_infix_expression);
         p.register_infix(TokenType::Mul, Parser::parse_infix_expression);
         p.register_infix(TokenType::Div, Parser::parse_infix_expression);
         p.register_infix(TokenType::Mod, Parser::parse_infix_expression);
+
+        p.register_infix(TokenType::Lparen, Parser::parse_call_expression);
 
         p
     }
@@ -344,6 +349,85 @@ impl Parser {
         }
 
         Some(block)
+    }
+
+    fn parse_function_literal(&mut self) -> Option<Expression> {
+        // current token is 'fn'
+        if !self.expect_peek(TokenType::Lparen) {
+            return None;
+        }
+
+        let params = self.parse_function_parameters()?;
+
+        if !self.expect_peek(TokenType::Lbrace) {
+            return None;
+        }
+
+        let body = self.parse_block_statement()?;
+
+        Some(Expression::FunctionLiteral(FunctionLiteral { params, body }))
+    }
+
+    fn parse_call_expression(&mut self, function: Expression) -> Option<Expression> {
+        let args = self.parse_call_arguments()?;
+        Some(Expression::CallExpression(Box::new(CallExpression {
+            function: Box::new(function),
+            arguments: args,
+        })))
+    }
+
+    fn parse_call_arguments(&mut self) -> Option<Vec<Expression>> {
+        let mut args = Vec::new();
+
+        // f()
+        if self.peek_token.token_type == TokenType::Rparen {
+            self.next_token(); // consume ')'
+            return Some(args);
+        }
+
+        // first argument
+        self.next_token();
+        args.push(self.parse_expression(Precedence::Lowest)?);
+
+        // additional arguments
+        while self.peek_token.token_type == TokenType::Comma {
+            self.next_token(); // consume ','
+            self.next_token(); // move to next argument
+            args.push(self.parse_expression(Precedence::Lowest)?);
+        }
+
+        if !self.expect_peek(TokenType::Rparen) {
+            return None;
+        }
+
+        Some(args)
+    }
+
+    fn parse_function_parameters(&mut self) -> Option<Vec<Identifier>> {
+        let mut params = Vec::new();
+
+        // fn() ...
+        if self.peek_token.token_type == TokenType::Rparen {
+            self.next_token(); // skip ')'
+            return Some(params);
+        }
+
+        // first param
+        self.next_token(); // current = first identifier
+        params.push(Identifier { value: self.cur_token.literal.clone() });
+
+        // more params
+        while self.peek_token.token_type == TokenType::Comma {
+            self.next_token(); // skip ','
+            self.next_token(); // move to next ident
+            params.push(Identifier { value: self.cur_token.literal.clone() });
+        }
+
+        if !self.expect_peek(TokenType::Rparen) {
+            return None;
+        }
+
+        Some(params)
     }
 }
 

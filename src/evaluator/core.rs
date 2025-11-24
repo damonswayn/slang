@@ -1,33 +1,39 @@
 use std::collections::HashMap;
 
-use crate::ast::{
-    Expression,
-    Identifier,
-    InfixExpression,
-    LetStatement,
-    Program,
-    Statement,
-    BlockStatement,
-    IfExpression,
-};
+use crate::ast::{Expression, Identifier, InfixExpression, LetStatement, Program, Statement, BlockStatement, IfExpression, FunctionLiteral, CallExpression};
 use crate::ast::nodes::PrefixExpression;
 use crate::object::Object;
 
 /// Simple lexical environment for variables
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
     store: HashMap<String, Object>,
+    outer: Option<Box<Environment>>,
 }
 
 impl Environment {
     pub fn new() -> Self {
         Environment {
             store: HashMap::new(),
+            outer: None,
+        }
+    }
+
+    pub fn new_enclosed(outer: Environment) -> Self {
+        Environment {
+            store: HashMap::new(),
+            outer: Some(Box::new(outer)),
         }
     }
 
     pub fn get(&self, name: &str) -> Option<Object> {
-        self.store.get(name).cloned()
+        if let Some(obj) = self.store.get(name) {
+            Some(obj.clone())
+        } else if let Some(ref outer) = self.outer {
+            outer.get(name)
+        } else {
+            None
+        }
     }
 
     pub fn set(&mut self, name: String, value: Object) {
@@ -69,6 +75,8 @@ fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
         Expression::Infix(infix) => eval_infix_expression(infix, env),
         Expression::If(ifexpr) => eval_if_expression(ifexpr, env),
         Expression::Prefix(p) => eval_prefix_expression(p, env),
+        Expression::FunctionLiteral(fl) => eval_function_literal(fl, env),
+        Expression::CallExpression(call) => eval_call_expression(call, env),
     }
 }
 
@@ -215,6 +223,41 @@ fn eval_minus_prefix(obj: Object) -> Object {
     }
 }
 
+fn eval_function_literal(fl: &FunctionLiteral, env: &Environment) -> Object {
+    Object::Function {
+        params: fl.params.clone(),
+        body: fl.body.clone(),
+        env: env.clone(), // capture defining environment (simple closures)
+    }
+}
+
+fn eval_call_expression(call: &CallExpression, env: &mut Environment) -> Object {
+    let function = eval_expression(&call.function, env);
+    let args: Vec<Object> = call
+        .arguments
+        .iter()
+        .map(|arg| eval_expression(arg, env))
+        .collect();
+
+    apply_function(function, args)
+}
+
+fn apply_function(func: Object, args: Vec<Object>) -> Object {
+    match func {
+        Object::Function { params, body, env } => {
+            // new environment that *encloses* the defining env
+            let mut extended_env = Environment::new_enclosed(env);
+
+            for (param, arg) in params.iter().zip(args.into_iter()) {
+                extended_env.set(param.value.clone(), arg);
+            }
+
+            eval_block_statement(&body, &mut extended_env)
+        }
+        _ => Object::Null, // later: return a proper error object
+    }
+}
+
 fn is_truthy(obj: &Object) -> bool {
     match obj {
         Object::Boolean(false) => false,
@@ -234,6 +277,10 @@ mod tests {
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
+
+        // Debug: see what AST the parser is producing
+        eprintln!("AST: {}", program);
+
         let mut env = Environment::new();
         eval(&program, &mut env)
     }
@@ -400,5 +447,39 @@ mod tests {
                 _ => panic!("expected boolean for '{}', got {:?}", input, obj),
             }
         }
+    }
+
+    #[test]
+    fn test_function_application() {
+        let input = r#"
+        let identity = function(x) { x; };
+        identity(5);
+    "#;
+
+        let obj = eval_input(input);
+        assert_eq!(obj, Object::Integer(5));
+    }
+
+    #[test]
+    fn test_function_with_two_params() {
+        let input = r#"
+        let add = function(a, b) { a + b; };
+        add(2, 3);
+    "#;
+
+        let obj = eval_input(input);
+        assert_eq!(obj, Object::Integer(5));
+    }
+
+    #[test]
+    fn test_closure_capture() {
+        let input = r#"
+        let a = 10;
+        let f = function(x) { x + a; };
+        f(5);
+    "#;
+
+        let obj = eval_input(input);
+        assert_eq!(obj, Object::Integer(15));
     }
 }

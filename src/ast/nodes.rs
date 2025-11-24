@@ -1,0 +1,162 @@
+use std::fmt::{self, Display, Formatter};
+
+#[derive(Debug, Clone)]
+pub struct Program {
+    pub statements: Vec<Statement>,
+}
+
+impl Program {
+    pub fn new() -> Self {
+        Program { statements: Vec::new() }
+    }
+}
+
+impl Display for Program {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        for stmt in &self.statements {
+            write!(f, "{}", stmt)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Statement {
+    Let(LetStatement),
+    Expression(ExpressionStatement),
+}
+
+impl Display for Statement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Statement::Let(ls) => write!(f, "{}", ls),
+            Statement::Expression(es) => write!(f, "{}", es),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LetStatement {
+    pub name: Identifier,
+    pub value: Expression,
+}
+
+impl Display for LetStatement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "let {} = {};", self.name, self.value)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ExpressionStatement {
+    pub expression: Expression,
+}
+
+impl Display for ExpressionStatement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.expression)
+    }
+}
+
+// ---------- Expressions ----------
+
+#[derive(Debug, Clone)]
+pub struct Identifier {
+    pub value: String,
+}
+
+impl Display for Identifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Expression {
+    Identifier(Identifier),
+    IntegerLiteral(IntegerLiteral),
+    BooleanLiteral(BooleanLiteral),
+    Infix(InfixExpression),
+    // later: Prefix, Boolean, If, etc.
+}
+
+impl Display for Expression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Expression::Identifier(ident) => write!(f, "{}", ident),
+            Expression::IntegerLiteral(il) => write!(f, "{}", il),
+            Expression::BooleanLiteral(bl) => write!(f, "{}", bl),
+            Expression::Infix(infix) => write!(f, "{}", infix),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct IntegerLiteral {
+    pub value: i64,
+}
+
+impl Display for IntegerLiteral {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BooleanLiteral {
+    pub value: bool,
+}
+
+impl Display for BooleanLiteral {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct InfixExpression {
+    pub left: Box<Expression>,
+    pub operator: String,
+    pub right: Box<Expression>,
+}
+
+impl Display for InfixExpression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "({} {} {})", *self.left, self.operator, *self.right)
+    }
+}
+
+// ---------- Tests ----------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn program_display_renders_let() {
+        let stmt = Statement::Let(LetStatement {
+            name: Identifier { value: "x".to_string() },
+            value: Expression::IntegerLiteral(IntegerLiteral { value: 5 }),
+        });
+
+        let mut program = Program::new();
+        program.statements.push(stmt);
+
+        assert_eq!(program.to_string(), "let x = 5;");
+    }
+
+    #[test]
+    fn infix_display_renders_parens() {
+        let expr = Expression::Infix(InfixExpression {
+            left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 1 })),
+            operator: "+".to_string(),
+            right: Box::new(Expression::Infix(InfixExpression {
+                left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 2 })),
+                operator: "*".to_string(),
+                right: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 3 })),
+            })),
+        });
+
+        assert_eq!(expr.to_string(), "(1 + (2 * 3))");
+    }
+}

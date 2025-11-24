@@ -11,4 +11,5 @@ pub use nodes::{
     ExpressionStatement,
     BlockStatement,
     IfExpression,
+    PrefixExpression,
 };

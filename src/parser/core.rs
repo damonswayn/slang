@@ -1,22 +1,27 @@
 use std::collections::HashMap;
 
 use crate::ast::{Program, Statement, Expression, Identifier, IntegerLiteral, InfixExpression, LetStatement, ExpressionStatement, IfExpression, BlockStatement};
-use crate::ast::nodes::{BooleanLiteral, FloatLiteral};
+use crate::ast::nodes::{BooleanLiteral, FloatLiteral, PrefixExpression};
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
 
 #[derive(PartialEq, PartialOrd, Debug, Copy, Clone)]
 enum Precedence {
     Lowest = 0,
+    Or, // ||
+    And, // &&
     Equals, // == !=
     LessGreater, // < > <= >=
     Sum,     // + -
     Product, // * / %
+    Prefix, // !x, -x
 }
 
 fn precedence_of(ttype: &TokenType) -> Precedence {
     use TokenType::*;
     match ttype {
+        Or => Precedence::Or,
+        And => Precedence::And,
         Equal | NotEqual => Precedence::Equals,
         LessThan | GreaterThan | LessEqual | GreaterEqual => Precedence::LessGreater,
         Plus | Minus => Precedence::Sum,
@@ -61,6 +66,8 @@ impl Parser {
         p.register_prefix(TokenType::True, Parser::parse_boolean_literal);
         p.register_prefix(TokenType::False, Parser::parse_boolean_literal);
         p.register_prefix(TokenType::If, Parser::parse_if_expression);
+        p.register_prefix(TokenType::Bang, Parser::parse_prefix_expression);
+        p.register_prefix(TokenType::Minus, Parser::parse_prefix_expression);
 
         p.register_infix(TokenType::Equal, Parser::parse_infix_expression);
         p.register_infix(TokenType::NotEqual, Parser::parse_infix_expression);
@@ -68,6 +75,8 @@ impl Parser {
         p.register_infix(TokenType::GreaterThan, Parser::parse_infix_expression);
         p.register_infix(TokenType::LessEqual, Parser::parse_infix_expression);
         p.register_infix(TokenType::GreaterEqual, Parser::parse_infix_expression);
+        p.register_infix(TokenType::And, Parser::parse_infix_expression);
+        p.register_infix(TokenType::Or, Parser::parse_infix_expression);
 
         // register infix parsers
         p.register_infix(TokenType::Plus, Parser::parse_infix_expression);
@@ -231,6 +240,19 @@ impl Parser {
             operator,
             right: Box::new(right),
         }))
+    }
+
+    fn parse_prefix_expression(&mut self) -> Option<Expression> {
+        let operator = self.cur_token.literal.clone();
+
+        self.next_token(); // move to right-hand side
+
+        let right = self.parse_expression(Precedence::Prefix)?;
+
+        Some(Expression::Prefix(Box::new(PrefixExpression {
+            operator,
+            right: Box::new(right),
+        })))
     }
 
     fn peek_precedence(&self) -> Precedence {

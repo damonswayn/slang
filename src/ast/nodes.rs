@@ -93,6 +93,7 @@ pub enum Expression {
     FloatLiteral(FloatLiteral),
     Infix(InfixExpression),
     If(Box<IfExpression>),
+    Prefix(Box<PrefixExpression>),
 }
 
 impl Display for Expression {
@@ -104,6 +105,7 @@ impl Display for Expression {
             Expression::FloatLiteral(fl) => write!(f, "{}", fl),
             Expression::Infix(infix) => write!(f, "{}", infix),
             Expression::If(ifexpr) => write!(f, "{}", ifexpr),
+            Expression::Prefix(prefix) => write!(f, "{}", prefix),
         }
     }
 }
@@ -174,6 +176,18 @@ impl Display for IfExpression {
         }
 
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PrefixExpression {
+    pub operator: String,
+    pub right: Box<Expression>,
+}
+
+impl Display for PrefixExpression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "({}{})", self.operator, self.right)
     }
 }
 

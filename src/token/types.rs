@@ -14,6 +14,9 @@ pub enum TokenType {
     Div,
     Mod,
 
+    And,
+    Or,
+
     Bang,
     LessThan,
     GreaterThan,

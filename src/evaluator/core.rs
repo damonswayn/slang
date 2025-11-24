@@ -10,6 +10,7 @@ use crate::ast::{
     BlockStatement,
     IfExpression,
 };
+use crate::ast::nodes::PrefixExpression;
 use crate::object::Object;
 
 /// Simple lexical environment for variables
@@ -67,6 +68,7 @@ fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
         Expression::BooleanLiteral(bl) => Object::Boolean(bl.value),
         Expression::Infix(infix) => eval_infix_expression(infix, env),
         Expression::If(ifexpr) => eval_if_expression(ifexpr, env),
+        Expression::Prefix(p) => eval_prefix_expression(p, env),
     }
 }
 
@@ -82,6 +84,30 @@ fn eval_identifier(ident: &Identifier, env: &Environment) -> Object {
 fn eval_infix_expression(infix: &InfixExpression, env: &mut Environment) -> Object {
     let left = eval_expression(&infix.left, env);
     let right = eval_expression(&infix.right, env);
+
+    let op = infix.operator.as_str();
+
+    if op == "&&" {
+        let left = eval_expression(&infix.left, env);
+
+        if !is_truthy(&left) {
+            return Object::Boolean(false);
+        }
+
+        let right = eval_expression(&infix.right, env);
+        return Object::Boolean(is_truthy(&right));
+    }
+
+    if op == "||" {
+        let left = eval_expression(&infix.left, env);
+
+        if is_truthy(&left) {
+            return Object::Boolean(true);
+        }
+
+        let right = eval_expression(&infix.right, env);
+        return Object::Boolean(is_truthy(&right));
+    }
 
     match (left, right) {
         (Object::Integer(l), Object::Integer(r)) => eval_integer_infix(&infix.operator, l, r),
@@ -160,6 +186,32 @@ fn eval_if_expression(ifexpr: &IfExpression, env: &mut Environment) -> Object {
         eval_block_statement(alt, env)
     } else {
         Object::Null
+    }
+}
+
+fn eval_prefix_expression(pe: &PrefixExpression, env: &mut Environment) -> Object {
+    let right = eval_expression(&pe.right, env);
+
+    match pe.operator.as_str() {
+        "!" => eval_bang_operator(right),
+        "-" => eval_minus_prefix(right), // already existing
+        _   => Object::Null,
+    }
+}
+
+fn eval_bang_operator(obj: Object) -> Object {
+    match obj {
+        Object::Boolean(b) => Object::Boolean(!b),
+        Object::Null       => Object::Boolean(true),
+        _                  => Object::Boolean(false),
+    }
+}
+
+fn eval_minus_prefix(obj: Object) -> Object {
+    match obj {
+        Object::Integer(i) => Object::Integer(-i),
+        Object::Float(f)   => Object::Float(-f),
+        _                       => Object::Null, // or some error type later
     }
 }
 
@@ -288,6 +340,62 @@ mod tests {
                 (Some(v), Object::Integer(i)) => assert_eq!(*i, v, "input: {}", input),
                 (None, Object::Null)          => {},
                 _ => panic!("unexpected result for '{}': {:?}", input, obj),
+            }
+        }
+    }
+
+    #[test]
+    fn test_unary_minus_and_not() {
+        let tests = vec![
+            ("-5;",      Object::Integer(-5)),
+            ("-10 + 5;", Object::Integer(-5)),       // (-10) + 5
+            ("-(1 + 2);", Object::Integer(-3)),
+            ("-1.5;",    Object::Float(-1.5)),
+            ("!-true;",  Object::Boolean(true)),
+        ];
+
+        for (input, expected) in tests {
+            let obj = eval_input(input);
+            assert_eq!(obj, expected, "input: {}", input);
+        }
+    }
+
+    #[test]
+    fn test_unary_minus_precedence() {
+        let obj = eval_input("-1 * 2;");
+        match obj {
+            Object::Integer(i) => assert_eq!(i, -2),
+            _ => panic!("expected integer, got {:?}", obj),
+        }
+    }
+
+    #[test]
+    fn test_logical_operators() {
+        let tests = vec![
+            ("!true;", false),
+            ("!false;", true),
+            ("!!true;", true),
+            ("!!false;", false),
+
+            ("true && true;", true),
+            ("true && false;", false),
+            ("false && true;", false),
+
+            ("true || false;", true),
+            ("false || false;", false),
+            ("false || true;", true),
+
+            ("1 < 2 && 2 < 3;", true),
+            ("1 < 2 && 2 > 3;", false),
+            ("1 > 2 || 2 > 3;", false),
+            ("false || 1 < 2;", true),
+        ];
+
+        for (input, expected) in tests {
+            let obj = eval_input(input);
+            match obj {
+                Object::Boolean(b) => assert_eq!(b, expected, "input: {}", input),
+                _ => panic!("expected boolean for '{}', got {:?}", input, obj),
             }
         }
     }

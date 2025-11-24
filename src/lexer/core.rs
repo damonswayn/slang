@@ -66,7 +66,23 @@ impl Lexer {
                 } else {
                     Token::new(TokenType::GreaterThan, String::from(">"))
                 }
-            }
+            },
+            Some('&') => {
+                if self.peek_char() == Some('&') {
+                    self.read_char();
+                    Token::new(TokenType::And, String::from("&&"))
+                } else {
+                    Token::new(TokenType::Illegal, String::from("&"))
+                }
+            },
+            Some('|') => {
+                if self.peek_char() == Some('|') {
+                    self.read_char();
+                    Token::new(TokenType::Or, String::from("||"))
+                } else {
+                    Token::new(TokenType::Illegal, String::from("|"))
+                }
+            },
             Some('+') => Token::new(TokenType::Plus, String::from("+")),
             Some('-') => Token::new(TokenType::Minus, String::from("-")),
             Some('*') => Token::new(TokenType::Mul, String::from("*")),

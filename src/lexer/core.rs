@@ -74,6 +74,8 @@ impl Lexer {
             Some('%') => Token::new(TokenType::Mod, String::from("%")),
             Some('(') => Token::new(TokenType::Lparen, String::from("(")),
             Some(')') => Token::new(TokenType::Rparen, String::from(")")),
+            Some('{') => Token::new(TokenType::Lbrace, String::from("{")),
+            Some('}') => Token::new(TokenType::Rbrace, String::from("}")),
             Some(';') => Token::new(TokenType::Semicolon, String::from(";")),
             None => Token::new(TokenType::Eof, String::from("")),
             Some(ch) => {

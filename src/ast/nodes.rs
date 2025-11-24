@@ -58,6 +58,20 @@ impl Display for ExpressionStatement {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct BlockStatement {
+    pub statements: Vec<Statement>,
+}
+
+impl Display for BlockStatement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        for stmt in &self.statements {
+            write!(f, "{}", stmt)?;
+        }
+        Ok(())
+    }
+}
+
 // ---------- Expressions ----------
 
 #[derive(Debug, Clone)]
@@ -78,7 +92,7 @@ pub enum Expression {
     BooleanLiteral(BooleanLiteral),
     FloatLiteral(FloatLiteral),
     Infix(InfixExpression),
-    // later: Prefix, Boolean, If, etc.
+    If(Box<IfExpression>),
 }
 
 impl Display for Expression {
@@ -89,6 +103,7 @@ impl Display for Expression {
             Expression::BooleanLiteral(bl) => write!(f, "{}", bl),
             Expression::FloatLiteral(fl) => write!(f, "{}", fl),
             Expression::Infix(infix) => write!(f, "{}", infix),
+            Expression::If(ifexpr) => write!(f, "{}", ifexpr),
         }
     }
 }
@@ -136,6 +151,29 @@ pub struct InfixExpression {
 impl Display for InfixExpression {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "({} {} {})", *self.left, self.operator, *self.right)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct IfExpression {
+    pub condition: Box<Expression>,
+    pub consequence: BlockStatement,
+    pub alternative: Option<BlockStatement>,
+}
+
+impl Display for IfExpression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "if ({}) {{", *self.condition)?;
+        write!(f, "{}", self.consequence)?;
+        write!(f, "}}")?;
+
+        if let Some(alt) = &self.alternative {
+            write!(f, " else {{")?;
+            write!(f, "{}", alt)?;
+            write!(f, "}}")?;
+        }
+
+        Ok(())
     }
 }
 

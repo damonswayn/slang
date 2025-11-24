@@ -23,10 +23,12 @@ pub enum TokenType {
     NotEqual,
 
     Lparen, Rparen,
+    Lbrace, Rbrace,
     Semicolon,
 
     Let,
-    True, False
+    True, False,
+    If, Else,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -9,4 +9,6 @@ pub use nodes::{
     InfixExpression,
     LetStatement,
     ExpressionStatement,
+    BlockStatement,
+    IfExpression,
 };

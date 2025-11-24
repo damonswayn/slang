@@ -5,6 +5,8 @@ pub fn lookup_ident(ident: &str) -> TokenType {
         "let" => TokenType::Let,
         "true" => TokenType::True,
         "false" => TokenType::False,
+        "if" => TokenType::If,
+        "else" => TokenType::Else,
         _ => TokenType::Ident
     }
 }

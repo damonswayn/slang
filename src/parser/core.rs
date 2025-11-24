@@ -1,15 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ast::{
-    Program,
-    Statement,
-    Expression,
-    Identifier,
-    IntegerLiteral,
-    InfixExpression,
-    LetStatement,
-    ExpressionStatement,
-};
+use crate::ast::{Program, Statement, Expression, Identifier, IntegerLiteral, InfixExpression, LetStatement, ExpressionStatement, IfExpression, BlockStatement};
 use crate::ast::nodes::{BooleanLiteral, FloatLiteral};
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
@@ -69,6 +60,7 @@ impl Parser {
         p.register_prefix(TokenType::Lparen, Parser::parse_grouped_expression);
         p.register_prefix(TokenType::True, Parser::parse_boolean_literal);
         p.register_prefix(TokenType::False, Parser::parse_boolean_literal);
+        p.register_prefix(TokenType::If, Parser::parse_if_expression);
 
         p.register_infix(TokenType::Equal, Parser::parse_infix_expression);
         p.register_infix(TokenType::NotEqual, Parser::parse_infix_expression);
@@ -277,6 +269,59 @@ impl Parser {
     fn parse_boolean_literal(&mut self) -> Option<Expression> {
         let value = matches!(self.cur_token.token_type, TokenType::True);
         Some(Expression::BooleanLiteral(BooleanLiteral { value }))
+    }
+
+    fn parse_if_expression(&mut self) -> Option<Expression> {
+        // current token is 'if'
+        if !self.expect_peek(TokenType::Lparen) {
+            return None;
+        }
+
+        self.next_token(); // move to first token inside '('
+        let condition = self.parse_expression(Precedence::Lowest)?;
+        if !self.expect_peek(TokenType::Rparen) {
+            return None;
+        }
+
+        if !self.expect_peek(TokenType::Lbrace) {
+            return None;
+        }
+
+        let consequence = self.parse_block_statement()?;
+
+        let alternative = if self.peek_token.token_type == TokenType::Else {
+            self.next_token(); // current = 'else'
+            if !self.expect_peek(TokenType::Lbrace) {
+                return None;
+            }
+            Some(self.parse_block_statement()?)
+        } else {
+            None
+        };
+
+        Some(Expression::If(Box::new(IfExpression {
+            condition: Box::new(condition),
+            consequence,
+            alternative,
+        })))
+    }
+
+    fn parse_block_statement(&mut self) -> Option<BlockStatement> {
+        // current token is '{'
+        let mut block = BlockStatement { statements: Vec::new() };
+
+        self.next_token(); // move to first token inside block
+
+        while self.cur_token.token_type != TokenType::Rbrace
+            && self.cur_token.token_type != TokenType::Eof
+        {
+            if let Some(stmt) = self.parse_statement() {
+                block.statements.push(stmt);
+            }
+            self.next_token();
+        }
+
+        Some(block)
     }
 }
 

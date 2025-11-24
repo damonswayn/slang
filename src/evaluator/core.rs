@@ -7,6 +7,8 @@ use crate::ast::{
     LetStatement,
     Program,
     Statement,
+    BlockStatement,
+    IfExpression,
 };
 use crate::object::Object;
 
@@ -64,6 +66,7 @@ fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
         Expression::FloatLiteral(fl) => Object::Float(fl.value),
         Expression::BooleanLiteral(bl) => Object::Boolean(bl.value),
         Expression::Infix(infix) => eval_infix_expression(infix, env),
+        Expression::If(ifexpr) => eval_if_expression(ifexpr, env),
     }
 }
 
@@ -137,6 +140,37 @@ fn eval_boolean_infix(op: &str, left: bool, right: bool) -> Object {
         _ => Object::Null,
     }
 }
+
+fn eval_block_statement(block: &BlockStatement, env: &mut Environment) -> Object {
+    let mut result = Object::Null;
+
+    for stmt in &block.statements {
+        result = eval_statement(stmt, env);
+    }
+
+    result
+}
+
+fn eval_if_expression(ifexpr: &IfExpression, env: &mut Environment) -> Object {
+    let condition = eval_expression(&ifexpr.condition, env);
+
+    if is_truthy(&condition) {
+        eval_block_statement(&ifexpr.consequence, env)
+    } else if let Some(alt) = &ifexpr.alternative {
+        eval_block_statement(alt, env)
+    } else {
+        Object::Null
+    }
+}
+
+fn is_truthy(obj: &Object) -> bool {
+    match obj {
+        Object::Boolean(false) => false,
+        Object::Null           => false,
+        _                      => true, // everything else is truthy
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -234,6 +268,27 @@ mod tests {
         match obj {
             Object::Boolean(b) => assert!(b),
             _ => panic!("expected boolean, got {:?}", obj),
+        }
+    }
+
+    #[test]
+    fn test_if_expressions() {
+        let cases = vec![
+            ("if (true) { 10; }", Some(10)),
+            ("if (false) { 10; }", None),
+            ("if (1 < 2) { 10; }", Some(10)),
+            ("if (1 > 2) { 10; }", None),
+            ("if (1 > 2) { 10; } else { 20; }", Some(20)),
+            ("if (false) { 10; } else { 30; }", Some(30)),
+        ];
+
+        for (input, expected) in cases {
+            let obj = eval_input(input);
+            match (expected, &obj) {
+                (Some(v), Object::Integer(i)) => assert_eq!(*i, v, "input: {}", input),
+                (None, Object::Null)          => {},
+                _ => panic!("unexpected result for '{}': {:?}", input, obj),
+            }
         }
     }
 }

@@ -332,6 +332,8 @@ mod tests {
             ("if (1 > 2) { 10; }", None),
             ("if (1 > 2) { 10; } else { 20; }", Some(20)),
             ("if (false) { 10; } else { 30; }", Some(30)),
+            ("if (false && true) { 10; } else { 30; }", Some(30)),
+            ("if (true && true) { 10; } else { 30; }", Some(10)),
         ];
 
         for (input, expected) in cases {

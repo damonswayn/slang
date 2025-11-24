@@ -76,6 +76,7 @@ pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
     BooleanLiteral(BooleanLiteral),
+    FloatLiteral(FloatLiteral),
     Infix(InfixExpression),
     // later: Prefix, Boolean, If, etc.
 }
@@ -86,6 +87,7 @@ impl Display for Expression {
             Expression::Identifier(ident) => write!(f, "{}", ident),
             Expression::IntegerLiteral(il) => write!(f, "{}", il),
             Expression::BooleanLiteral(bl) => write!(f, "{}", bl),
+            Expression::FloatLiteral(fl) => write!(f, "{}", fl),
             Expression::Infix(infix) => write!(f, "{}", infix),
         }
     }
@@ -97,6 +99,17 @@ pub struct IntegerLiteral {
 }
 
 impl Display for IntegerLiteral {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FloatLiteral {
+    pub value: f64,
+}
+
+impl Display for FloatLiteral {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
     }

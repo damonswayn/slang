@@ -10,7 +10,7 @@ use crate::ast::{
     LetStatement,
     ExpressionStatement,
 };
-use crate::ast::nodes::BooleanLiteral;
+use crate::ast::nodes::{BooleanLiteral, FloatLiteral};
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
 
@@ -65,6 +65,7 @@ impl Parser {
         // register prefix parsers
         p.register_prefix(TokenType::Ident, Parser::parse_identifier);
         p.register_prefix(TokenType::Int, Parser::parse_integer_literal);
+        p.register_prefix(TokenType::Float, Parser::parse_float_literal);
         p.register_prefix(TokenType::Lparen, Parser::parse_grouped_expression);
         p.register_prefix(TokenType::True, Parser::parse_boolean_literal);
         p.register_prefix(TokenType::False, Parser::parse_boolean_literal);
@@ -202,6 +203,17 @@ impl Parser {
             Err(_) => {
                 self.errors
                     .push(format!("could not parse {} as integer", self.cur_token.literal));
+                None
+            }
+        }
+    }
+
+    fn parse_float_literal(&mut self) -> Option<Expression> {
+        match self.cur_token.literal.parse::<f64>() {
+            Ok(v) => Some(Expression::FloatLiteral(FloatLiteral { value: v })),
+            Err(_) => {
+                self.errors
+                    .push(format!("could not parse {} as float", self.cur_token.literal));
                 None
             }
         }

@@ -5,6 +5,7 @@ pub enum TokenType {
 
     Ident,
     Int,
+    Float,
 
     Assign,
     Plus,

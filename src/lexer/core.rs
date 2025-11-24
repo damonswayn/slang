@@ -82,8 +82,9 @@ impl Lexer {
                     let ttype = lookup_ident(&literal);
                     return Token::new(ttype, literal);
                 } else if ch.is_ascii_digit() {
-                    let literal = self.read_number();
-                    return Token::new(TokenType::Int, literal);
+                    let (literal, is_float) = self.read_number();
+                    let ttype = if is_float { TokenType::Float } else { TokenType::Int };
+                    return Token::new(ttype, literal);
                 } else {
                     Token::new(TokenType::Illegal, String::from(ch))
                 }
@@ -110,14 +111,28 @@ impl Lexer {
         self.input[start..self.position].iter().collect()
     }
 
-    fn read_number(&mut self) -> String {
+    fn read_number(&mut self) -> (String, bool) {
         let start = self.position;
 
         while matches!(self.ch, Some(ch) if ch.is_ascii_digit()) {
             self.read_char();
         }
 
-        self.input[start..self.position].iter().collect()
+        let mut is_float = false;
+        if self.ch == Some('.') {
+            if let Some(next_ch) = self.peek_char() {
+                if next_ch.is_ascii_digit() {
+                    is_float = true;
+                    self.read_char();
+                    while matches!(self.ch, Some(ch) if ch.is_ascii_digit()) {
+                        self.read_char();
+                    }
+                }
+            }
+        }
+
+        let literal: String = self.input[start..self.position].iter().collect();
+        (literal, is_float)
     }
 
     fn peek_char(&self) -> Option<char> {

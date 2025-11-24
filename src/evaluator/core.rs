@@ -61,6 +61,7 @@ fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
     match expr {
         Expression::Identifier(ident) => eval_identifier(ident, env),
         Expression::IntegerLiteral(il) => Object::Integer(il.value),
+        Expression::FloatLiteral(fl) => Object::Float(fl.value),
         Expression::BooleanLiteral(bl) => Object::Boolean(bl.value),
         Expression::Infix(infix) => eval_infix_expression(infix, env),
     }
@@ -81,6 +82,12 @@ fn eval_infix_expression(infix: &InfixExpression, env: &mut Environment) -> Obje
 
     match (left, right) {
         (Object::Integer(l), Object::Integer(r)) => eval_integer_infix(&infix.operator, l, r),
+        (Object::Float(l), Object::Float(r)) => eval_float_infix(&infix.operator, l, r),
+
+        // mixed numeric types are coerced to float, so we can use the same logic as for integers
+        (Object::Integer(l), Object::Float(r)) => eval_float_infix(&infix.operator, l as f64, r),
+        (Object::Float(l), Object::Integer(r)) => eval_float_infix(&infix.operator, l, r as f64),
+
         (Object::Boolean(l), Object::Boolean(r)) => eval_boolean_infix(&infix.operator, l, r),
         _ => Object::Null, // later: type errors, etc.
     }
@@ -100,6 +107,25 @@ fn eval_integer_infix(op: &str, left: i64, right: i64) -> Object {
         ">=" => Object::Boolean(left >= right),
         "==" => Object::Boolean(left == right),
         "!=" => Object::Boolean(left != right),
+        _ => Object::Null,
+    }
+}
+
+fn eval_float_infix(op: &str, left: f64, right: f64) -> Object {
+    match op {
+        "+"  => Object::Float(left + right),
+        "-"  => Object::Float(left - right),
+        "*"  => Object::Float(left * right),
+        "/"  => Object::Float(left / right),
+        "%"  => Object::Float(left % right),
+
+        "<"  => Object::Boolean(left < right),
+        "<=" => Object::Boolean(left <= right),
+        ">"  => Object::Boolean(left > right),
+        ">=" => Object::Boolean(left >= right),
+        "==" => Object::Boolean(left == right),
+        "!=" => Object::Boolean(left != right),
+
         _ => Object::Null,
     }
 }
@@ -182,6 +208,32 @@ mod tests {
                 Object::Boolean(b) => assert_eq!(b, expected, "input: {}", input),
                 _ => panic!("expected boolean for '{}', got {:?}", input, obj),
             }
+        }
+    }
+
+    #[test]
+    fn test_float_arithmetic_and_comparisons() {
+        let tests = vec![
+            ("1.5 + 2.25;", 3.75),
+            ("10.0 - 3.5;", 6.5),
+            ("2.0 * 4.5;", 9.0),
+            ("9.0 / 4.5;", 2.0),
+            ("1.0 < 2.0;", 1.0),  // use 1.0 for true if you want? or test as boolean separately
+        ];
+
+        for (input, expected) in &tests[0..4] {
+            let obj = eval_input(input);
+            match obj {
+                Object::Float(x) => assert!((x - expected).abs() < 1e-9, "input: {}", input),
+                _ => panic!("expected float for '{}', got {:?}", input, obj),
+            }
+        }
+
+        // comparison example
+        let obj = eval_input("1.5 < 2.0;");
+        match obj {
+            Object::Boolean(b) => assert!(b),
+            _ => panic!("expected boolean, got {:?}", obj),
         }
     }
 }

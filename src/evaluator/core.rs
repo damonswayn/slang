@@ -81,6 +81,7 @@ fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
         Expression::IntegerLiteral(il) => Object::Integer(il.value),
         Expression::FloatLiteral(fl) => Object::Float(fl.value),
         Expression::BooleanLiteral(bl) => Object::Boolean(bl.value),
+        Expression::StringLiteral(sl) => Object::String(sl.value.clone()),
         Expression::Infix(infix) => eval_infix_expression(infix, env),
         Expression::If(ifexpr) => eval_if_expression(ifexpr, env),
         Expression::Prefix(p) => eval_prefix_expression(p, env),
@@ -135,6 +136,7 @@ fn eval_infix_expression(infix: &InfixExpression, env: &mut Environment) -> Obje
         (Object::Float(l), Object::Integer(r)) => eval_float_infix(&infix.operator, l, r as f64),
 
         (Object::Boolean(l), Object::Boolean(r)) => eval_boolean_infix(&infix.operator, l, r),
+        (Object::String(l), Object::String(r)) => eval_string_infix(&infix.operator, &l, &r),
         _ => Object::Null, // later: type errors, etc.
     }
 }
@@ -301,6 +303,21 @@ fn eval_while_statement(ws: &WhileStatement, env: &mut Environment) -> Object {
 
     result
 }
+
+fn eval_string_infix(op: &str, left: &str, right: &str) -> Object {
+    match op {
+        "+"  => {
+            let mut s = String::with_capacity(left.len() + right.len());
+            s.push_str(left);
+            s.push_str(right);
+            Object::String(s)
+        }
+        "==" => Object::Boolean(left == right),
+        "!=" => Object::Boolean(left != right),
+        _    => Object::Null,
+    }
+}
+
 
 
 fn is_truthy(obj: &Object) -> bool {
@@ -595,5 +612,44 @@ mod tests {
 
         let obj = eval_input(input);
         assert_eq!(obj, Object::Integer(3));
+    }
+
+    #[test]
+    fn test_string_literal() {
+        let input = r#""hello world";"#;
+
+        let obj = eval_input(input);
+        match obj {
+            Object::String(s) => assert_eq!(s, "hello world"),
+            _ => panic!("expected string, got {:?}", obj),
+        }
+    }
+
+    #[test]
+    fn test_string_concatenation() {
+        let input = r#""hello" + " " + "world";"#;
+
+        let obj = eval_input(input);
+        match obj {
+            Object::String(s) => assert_eq!(s, "hello world"),
+            _ => panic!("expected string, got {:?}", obj),
+        }
+    }
+
+    #[test]
+    fn test_string_equality() {
+        let tests = vec![
+            (r#""a" == "a";"#, true),
+            (r#""a" == "b";"#, false),
+            (r#""foo" != "bar";"#, true),
+        ];
+
+        for (input, expected) in tests {
+            let obj = eval_input(input);
+            match obj {
+                Object::Boolean(b) => assert_eq!(b, expected, "input: {}", input),
+                _ => panic!("expected boolean, got {:?}", obj),
+            }
+        }
     }
 }

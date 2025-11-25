@@ -6,6 +6,7 @@ pub enum TokenType {
     Ident,
     Int,
     Float,
+    String,
     Function,
 
     Assign,

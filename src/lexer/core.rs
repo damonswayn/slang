@@ -83,6 +83,11 @@ impl Lexer {
                     Token::new(TokenType::Illegal, String::from("|"))
                 }
             },
+            Some('"') => {
+                let literal = self.read_string();
+                self.read_char(); // chomp the closing "
+                Token::new(TokenType::String, literal)
+            },
             Some('+') => Token::new(TokenType::Plus, String::from("+")),
             Some('-') => Token::new(TokenType::Minus, String::from("-")),
             Some('*') => Token::new(TokenType::Mul, String::from("*")),
@@ -160,6 +165,19 @@ impl Lexer {
         } else {
             Some(self.input[self.read_position])
         }
+    }
+
+    fn read_string(&mut self) -> String {
+        self.read_char(); // move past the opening "
+
+        let start = self.position;
+        while let Some(ch) = self.ch {
+            if ch == '"' { break; }
+            self.read_char();
+        }
+
+        let literal: String = self.input[start..self.position].iter().collect();
+        literal
     }
 }
 

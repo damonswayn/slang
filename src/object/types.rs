@@ -7,6 +7,7 @@ pub enum Object {
     Integer(i64),
     Float(f64),
     Boolean(bool),
+    String(String),
     Function {
         params: Vec<Identifier>,
         body: BlockStatement,
@@ -22,6 +23,7 @@ impl Display for Object {
             Object::Integer(i) => write!(f, "{}", i),
             Object::Float(x) => write!(f, "{}", x),
             Object::Boolean(b) => write!(f, "{}", if *b { "true" } else { "false" }),
+            Object::String(s) => write!(f, "\"{}\"", s),
             Object::Function { .. } => write!(f, "<native fn>"),
             Object::ReturnValue(obj) => write!(f, "{}", obj.to_string()),
             Object::Null => write!(f, "null"),

@@ -120,6 +120,7 @@ pub enum Expression {
     IntegerLiteral(IntegerLiteral),
     BooleanLiteral(BooleanLiteral),
     FloatLiteral(FloatLiteral),
+    StringLiteral(StringLiteral),
     Infix(InfixExpression),
     If(Box<IfExpression>),
     Prefix(Box<PrefixExpression>),
@@ -134,6 +135,7 @@ impl Display for Expression {
             Expression::IntegerLiteral(il) => write!(f, "{}", il),
             Expression::BooleanLiteral(bl) => write!(f, "{}", bl),
             Expression::FloatLiteral(fl) => write!(f, "{}", fl),
+            Expression::StringLiteral(sl) => write!(f, "{}", sl),
             Expression::Infix(infix) => write!(f, "{}", infix),
             Expression::If(ifexpr) => write!(f, "{}", ifexpr),
             Expression::Prefix(prefix) => write!(f, "{}", prefix),
@@ -173,6 +175,18 @@ pub struct BooleanLiteral {
 impl Display for BooleanLiteral {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StringLiteral {
+    pub value: String,
+}
+
+impl Display for StringLiteral {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // You can print without quotes or with; I’ll include quotes:
+        write!(f, "\"{}\"", self.value)
     }
 }
 

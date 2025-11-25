@@ -16,4 +16,5 @@ pub use nodes::{
     CallExpression,
     ReturnStatement,
     WhileStatement,
+    StringLiteral,
 };

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ast::{Program, Statement, Expression, Identifier, IntegerLiteral, InfixExpression, LetStatement, ExpressionStatement, IfExpression, BlockStatement, FunctionLiteral, CallExpression, WhileStatement};
+use crate::ast::{Program, Statement, Expression, Identifier, IntegerLiteral, InfixExpression, LetStatement, ExpressionStatement, IfExpression, BlockStatement, FunctionLiteral, CallExpression, WhileStatement, StringLiteral};
 use crate::ast::nodes::{BooleanLiteral, FloatLiteral, PrefixExpression, ReturnStatement};
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
@@ -71,6 +71,7 @@ impl Parser {
         p.register_prefix(TokenType::Bang, Parser::parse_prefix_expression);
         p.register_prefix(TokenType::Minus, Parser::parse_prefix_expression);
         p.register_prefix(TokenType::Function, Parser::parse_function_literal);
+        p.register_prefix(TokenType::String, Parser::parse_string_literal);
 
         // register infix parsers
         p.register_infix(TokenType::Equal, Parser::parse_infix_expression);
@@ -474,6 +475,11 @@ impl Parser {
         Some(WhileStatement { condition, body })
     }
 
+    fn parse_string_literal(&mut self) -> Option<Expression> {
+        Some(Expression::StringLiteral(StringLiteral {
+            value: self.cur_token.literal.clone(),
+        }))
+    }
 }
 
 #[cfg(test)]

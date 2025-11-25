@@ -14,9 +14,12 @@ pub enum Object {
         body: BlockStatement,
         env: Environment,
     },
+    Builtin(BuiltinFunction),
     ReturnValue(Box<Object>),
     Null,
 }
+
+pub type BuiltinFunction = fn(Vec<Object>) -> Object;
 
 impl Display for Object {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -33,7 +36,8 @@ impl Display for Object {
                     .join(", ");
                 write!(f, "[{}]", inner)
             },
-            Object::Function { .. } => write!(f, "<native fn>"),
+            Object::Function { .. } => write!(f, "<user fn>"),
+            Object::Builtin(_) => write!(f, "<native fn>"),
             Object::ReturnValue(obj) => write!(f, "{}", obj.to_string()),
             Object::Null => write!(f, "null"),
         }

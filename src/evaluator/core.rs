@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
-use crate::ast::nodes::{PrefixExpression, ReturnStatement};
+use crate::ast::nodes::{ForStatement, PrefixExpression, ReturnStatement};
 use crate::ast::{ArrayLiteral, BlockStatement, CallExpression, Expression, FunctionLiteral, Identifier, IfExpression, IndexExpression, InfixExpression, LetStatement, Program, Statement, WhileStatement};
+use crate::{builtins, debug_log};
 use crate::object::Object;
 
 /// Simple lexical environment for variables
@@ -61,6 +62,7 @@ fn eval_statement(stmt: &Statement, env: &mut Environment) -> Object {
         Statement::Let(ls) => eval_let_statement(ls, env),
         Statement::Return(rs) => eval_return_statement(rs, env),
         Statement::While(ws) => eval_while_statement(ws, env),
+        Statement::For(fs) => eval_for_statement(fs, env),
         Statement::Expression(es) => eval_expression(&es.expression, env),
     }
 }
@@ -90,12 +92,20 @@ fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
 }
 
 fn eval_identifier(ident: &Identifier, env: &Environment) -> Object {
+    debug_log!("eval_identifier: looking up '{}'", ident.value);
+
     if let Some(val) = env.get(&ident.value) {
-        val
-    } else {
-        // for now: unknown identifier becomes null; you could also panic or log an error
-        Object::Null
+        debug_log!("  found in env: {:?}", val);
+        return val;
     }
+
+    if let Some(builtin_fn) = builtins::get(&ident.value) {
+        debug_log!("  resolved as builtin");
+        return Object::Builtin(builtin_fn);
+    }
+
+    debug_log!("  not found (returning Null)");
+    Object::Null
 }
 
 fn eval_infix_expression(infix: &InfixExpression, env: &mut Environment) -> Object {
@@ -103,6 +113,16 @@ fn eval_infix_expression(infix: &InfixExpression, env: &mut Environment) -> Obje
     let right = eval_expression(&infix.right, env);
 
     let op = infix.operator.as_str();
+
+    if op == "=" {
+        if let Expression::Identifier(Identifier {value: name}) = &*infix.left {
+            let value = eval_expression(&infix.right, env);
+            env.set(name.clone(), value.clone());
+            return value;
+        } else {
+            return Object::Null;
+        }
+    }
 
     if op == "&&" {
         let left = eval_expression(&infix.left, env);
@@ -273,7 +293,8 @@ fn apply_function(func: Object, args: Vec<Object>) -> Object {
                 Object::ReturnValue(val) => *val,
                 _ => result,
             }
-        }
+        },
+        Object::Builtin(f) => f(args),
         _ => Object::Null, // later: return a proper error object
     }
 }
@@ -297,6 +318,44 @@ fn eval_while_statement(ws: &WhileStatement, env: &mut Environment) -> Object {
         // propagate return out of the loop
         if let Object::ReturnValue(_) = result {
             return result;
+        }
+    }
+
+    result
+}
+
+fn eval_for_statement(fs: &ForStatement, env: &mut Environment) -> Object {
+    // init
+    if let Some(init_stmt) = &fs.init {
+        let init_result = eval_statement(init_stmt, env);
+        if let Object::ReturnValue(_) = init_result {
+            return init_result;
+        }
+    }
+
+    let mut result = Object::Null;
+
+    loop {
+        // condition
+        if let Some(cond_expr) = &fs.condition {
+            let cond = eval_expression(cond_expr, env);
+            if !is_truthy(&cond) {
+                break;
+            }
+        }
+
+        // body
+        result = eval_block_statement(&fs.body, env);
+        if let Object::ReturnValue(_) = result {
+            return result;
+        }
+
+        // post
+        if let Some(post_stmt) = &fs.post {
+            let post_result = eval_statement(post_stmt, env);
+            if let Object::ReturnValue(_) = post_result {
+                return post_result;
+            }
         }
     }
 
@@ -367,6 +426,9 @@ mod tests {
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
+
+        debug_log!("AST: {} ({} statements)", program, program.statements.len());
+        debug_log!("program.statements = {:#?}", program.statements);
 
         let mut env = Environment::new();
         eval(&program, &mut env)
@@ -727,6 +789,110 @@ mod tests {
         let obj = eval_input(input);
         match obj {
             Object::Integer(i) => assert_eq!(i, 2),
+            _ => panic!("expected integer, got {:?}", obj),
+        }
+    }
+
+    #[test]
+    fn test_for_loop_basic() {
+        let input = r#"
+        let i = 0;
+        for (let x = 0; x < 5; x = x + 1) {
+            let i = i + 1;
+        }
+        i;
+    "#;
+
+        let obj = eval_input(input);
+        assert_eq!(obj, Object::Integer(5));
+    }
+
+    #[test]
+    fn test_for_loop_no_init() {
+        let input = r#"
+        let i = 0;
+        for (; i < 3; ) {
+            let i = i + 1;
+        }
+        i;
+    "#;
+
+        let obj = eval_input(input);
+        assert_eq!(obj, Object::Integer(3));
+    }
+
+    #[test]
+    fn test_for_loop_with_return() {
+        let input = r#"
+        fn test() {
+            for (let x = 0; ; x = x + 1) {
+                if (x == 3) {
+                    return x;
+                }
+            }
+        }
+        test();
+    "#;
+
+        let obj = eval_input(input);
+        assert_eq!(obj, Object::Integer(3));
+    }
+
+    #[test]
+    fn test_simple_assignment() {
+        let input = r#"
+        let x = 1;
+        x = x + 2;
+        x;
+    "#;
+
+        let obj = eval_input(input);
+        assert_eq!(obj, Object::Integer(3));
+    }
+
+    #[test]
+    fn test_assignment_returns_value() {
+        let input = r#"
+        let x = 0;
+        let y = (x = 5);
+        y;
+    "#;
+
+        let obj = eval_input(input);
+        assert_eq!(obj, Object::Integer(5));
+    }
+
+    #[test]
+    fn test_builtin_len() {
+        let cases = vec![
+            (r#"len("hello");"#, 5),
+            (r#"len([1, 2, 3]);"#, 3),
+            (r#"len([]);"#, 0),
+        ];
+
+        for (input, expected) in cases {
+            let obj = eval_input(input);
+            match obj {
+                Object::Integer(i) => assert_eq!(i, expected, "input: {}", input),
+                _ => panic!("expected integer for '{}', got {:?}", input, obj),
+            }
+        }
+    }
+
+    #[test]
+    fn test_builtin_first_last_rest_push() {
+        let input = r#"
+        let a = [1, 2, 3];
+        let b = first(a);
+        let c = last(a);
+        let d = rest(a);
+        let e = push(a, 4);
+        len(d) + len(e);
+    "#;
+
+        let obj = eval_input(input);
+        match obj {
+            Object::Integer(i) => assert_eq!(i, 2 + 4), // [2,3] len=2; [1,2,3,4] len=4
             _ => panic!("expected integer, got {:?}", obj),
         }
     }

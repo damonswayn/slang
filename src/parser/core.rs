@@ -1,13 +1,15 @@
 use std::collections::HashMap;
 
 use crate::ast::{Program, Statement, Expression, Identifier, IntegerLiteral, InfixExpression, LetStatement, ExpressionStatement, IfExpression, BlockStatement, FunctionLiteral, CallExpression, WhileStatement, StringLiteral, ArrayLiteral, IndexExpression};
-use crate::ast::nodes::{BooleanLiteral, FloatLiteral, PrefixExpression, ReturnStatement};
+use crate::ast::nodes::{BooleanLiteral, FloatLiteral, ForStatement, PrefixExpression, ReturnStatement};
+use crate::debug_log;
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
 
 #[derive(PartialEq, PartialOrd, Debug, Copy, Clone)]
 enum Precedence {
     Lowest = 0,
+    Assign, // =
     Or, // ||
     And, // &&
     Equals, // == !=
@@ -21,6 +23,7 @@ enum Precedence {
 fn precedence_of(ttype: &TokenType) -> Precedence {
     use TokenType::*;
     match ttype {
+        Assign => Precedence::Assign,
         Or => Precedence::Or,
         And => Precedence::And,
         Equal | NotEqual => Precedence::Equals,
@@ -84,6 +87,7 @@ impl Parser {
         p.register_infix(TokenType::GreaterEqual, Parser::parse_infix_expression);
         p.register_infix(TokenType::And, Parser::parse_infix_expression);
         p.register_infix(TokenType::Or, Parser::parse_infix_expression);
+        p.register_infix(TokenType::Assign, Parser::parse_infix_expression);
 
         p.register_infix(TokenType::Plus, Parser::parse_infix_expression);
         p.register_infix(TokenType::Minus, Parser::parse_infix_expression);
@@ -112,25 +116,72 @@ impl Parser {
 
     // ---------- Top-level ----------
 
+    // pub fn parse_program(&mut self) -> Program {
+    //     let mut program = Program::new();
+    //
+    //     while self.cur_token.token_type != TokenType::Eof {
+    //         if let Some(stmt) = self.parse_statement() {
+    //             program.statements.push(stmt);
+    //         }
+    //         self.next_token();
+    //     }
+    //
+    //     program
+    // }
+
     pub fn parse_program(&mut self) -> Program {
-        let mut program = Program::new();
+        let mut program = Program { statements: Vec::new() };
+
+        debug_log!("parse_program: starting, cur_token = {:?}", self.cur_token);
 
         while self.cur_token.token_type != TokenType::Eof {
-            if let Some(stmt) = self.parse_statement() {
-                program.statements.push(stmt);
+            debug_log!("parse_program: top of loop, cur_token = {:?}", self.cur_token);
+
+            match self.parse_statement() {
+                Some(stmt) => {
+                    debug_log!("  parse_statement returned: {:?}", stmt);
+                    program.statements.push(stmt);
+                }
+                None => {
+                    debug_log!("  parse_statement returned None");
+                }
             }
+
             self.next_token();
         }
+
+        debug_log!(
+            "parse_program: finished with {} statements",
+            program.statements.len()
+        );
 
         program
     }
 
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.cur_token.token_type {
-            TokenType::Let => self.parse_let_statement().map(Statement::Let),
-            TokenType::Return => self.parse_return_statement().map(Statement::Return),
-            TokenType::While => self.parse_while_statement().map(Statement::While),
-            _ => self.parse_expression_statement().map(Statement::Expression),
+            TokenType::Let => {
+                debug_log!("  -> parsing Let statement");
+                self.parse_let_statement().map(Statement::Let)
+            },
+            TokenType::Return => {
+                debug_log!("  -> parsing Return statement");
+                self.parse_return_statement().map(Statement::Return)
+            },
+            TokenType::While => {
+                debug_log!("  -> parsing While statement");
+                self.parse_while_statement().map(Statement::While)
+            },
+            TokenType::For => {
+                debug_log!("  -> parsing For statement");
+                self.parse_for_statement().map(Statement::For)
+            },
+            _ => {
+                debug_log!("  -> default: parsing Expression statement");
+                let stmt = self.parse_expression_statement();
+                debug_log!("  -> parse_expression_statement returned: {:?}", stmt);
+                stmt.map(Statement::Expression)
+            },
         }
     }
 
@@ -162,46 +213,126 @@ impl Parser {
     }
 
     fn parse_expression_statement(&mut self) -> Option<ExpressionStatement> {
-        let expr = self.parse_expression(Precedence::Lowest)?;
+        debug_log!("parse_expression_statement: ENTER, cur_token = {:?}", self.cur_token);
+
+        let expr = match self.parse_expression(Precedence::Lowest) {
+            Some(e) => {
+                debug_log!("parse_expression_statement: parse_expression returned Some({:?})", e);
+                e
+            }
+            None => {
+                debug_log!("parse_expression_statement: parse_expression returned None");
+                return None;
+            }
+        };
+
+        debug_log!(
+            "parse_expression_statement: after parse_expression, cur_token = {:?}, peek_token = {:?}",
+            self.cur_token, self.peek_token
+        );
+
         if self.peek_token.token_type == TokenType::Semicolon {
+            debug_log!("parse_expression_statement: consuming trailing semicolon");
             self.next_token();
         }
-        Some(ExpressionStatement { expression: expr })
+
+        let stmt = ExpressionStatement { expression: expr };
+        debug_log!("parse_expression_statement: EXIT with {:?}", stmt);
+        Some(stmt)
     }
 
     // ---------- Expressions (Pratt) ----------
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
-        let prefix = {
-            let ttype = self.cur_token.token_type.clone();
-            self.prefix_fns.get(&ttype).copied()
+        debug_log!(
+            "parse_expression: ENTER, cur_token = {:?}, peek_token = {:?}, precedence = {:?}",
+            self.cur_token, self.peek_token, precedence
+        );
+
+        let prefix = match self.prefix_fns.get(&self.cur_token.token_type).copied() {
+            Some(prefix) => {
+                debug_log!("parse_expression: found prefix fn for {:?}", self.cur_token.token_type);
+                prefix
+            }
+            None => {
+                debug_log!(
+                    "parse_expression: NO prefix fn for {:?}, returning None",
+                    self.cur_token.token_type
+                );
+                return None;
+            }
         };
 
-        if prefix.is_none() {
-            self.no_prefix_parse_fn_error(self.cur_token.token_type.clone());
-            return None;
-        }
+        let mut left_exp = match prefix(self) {
+            Some(e) => {
+                debug_log!("parse_expression: prefix parsed to {:?}", e);
+                e
+            }
+            None => {
+                debug_log!("parse_expression: prefix parser returned None");
+                return None;
+            }
+        };
 
-        let mut left = prefix.unwrap()(self)?;
+        debug_log!(
+            "parse_expression: after prefix, cur_token = {:?}, peek_token = {:?}",
+            self.cur_token, self.peek_token
+        );
 
         while self.peek_token.token_type != TokenType::Semicolon
             && precedence < self.peek_precedence()
         {
-            let infix = {
-                let ttype = self.peek_token.token_type.clone();
-                self.infix_fns.get(&ttype).copied()
+            debug_log!(
+                "parse_expression: infix loop, peek_token = {:?}, precedence = {:?}, peek_prec = {:?}",
+                self.peek_token,
+                precedence,
+                self.peek_precedence()
+            );
+
+            let infix = match self.infix_fns.get(&self.peek_token.token_type).copied() {
+                Some(infix) => {
+                    debug_log!(
+                        "parse_expression: found infix fn for {:?}",
+                        self.peek_token.token_type
+                    );
+                    infix
+                }
+                None => {
+                    debug_log!(
+                        "parse_expression: NO infix fn for {:?}, breaking",
+                        self.peek_token.token_type
+                    );
+                    return Some(left_exp);
+                }
             };
 
-            if infix.is_none() {
-                return Some(left);
-            }
+            self.next_token(); // step onto the infix operator
+            debug_log!(
+                "parse_expression: after next_token, cur_token = {:?}, calling infix",
+                self.cur_token
+            );
 
-            self.next_token(); // advance to operator
-            left = infix.unwrap()(self, left)?;
+            left_exp = match infix(self, left_exp) {
+                Some(e) => {
+                    debug_log!("parse_expression: infix parsed to {:?}", e);
+                    e
+                }
+                None => {
+                    debug_log!("parse_expression: infix parser returned None");
+                    return None;
+                }
+            };
+
+            debug_log!(
+                "parse_expression: end of infix loop iteration, cur_token = {:?}, peek_token = {:?}",
+                self.cur_token, self.peek_token
+            );
         }
 
-        Some(left)
+        debug_log!("parse_expression: EXIT with {:?}", left_exp);
+        Some(left_exp)
     }
+
 
     fn parse_identifier(&mut self) -> Option<Expression> {
         Some(Expression::Identifier(Identifier {
@@ -294,11 +425,6 @@ impl Parser {
         self.errors.push(msg);
     }
 
-    fn no_prefix_parse_fn_error(&mut self, t: TokenType) {
-        let msg = format!("no prefix parse function for {:?} found", t);
-        self.errors.push(msg);
-    }
-
     fn parse_boolean_literal(&mut self) -> Option<Expression> {
         let value = matches!(self.cur_token.token_type, TokenType::True);
         Some(Expression::BooleanLiteral(BooleanLiteral { value }))
@@ -375,38 +501,18 @@ impl Parser {
     }
 
     fn parse_call_expression(&mut self, function: Expression) -> Option<Expression> {
-        let args = self.parse_call_arguments()?;
+        debug_log!(
+            "parse_call_expression: ENTER, function = {:?}, cur_token = {:?}, peek_token = {:?}",
+            function, self.cur_token, self.peek_token
+        );
+
+        let arguments = self.parse_expression_list(TokenType::Rparen)?;
+        debug_log!("parse_call_expression: arguments = {:?}", arguments);
+
         Some(Expression::CallExpression(Box::new(CallExpression {
             function: Box::new(function),
-            arguments: args,
+            arguments,
         })))
-    }
-
-    fn parse_call_arguments(&mut self) -> Option<Vec<Expression>> {
-        let mut args = Vec::new();
-
-        // f()
-        if self.peek_token.token_type == TokenType::Rparen {
-            self.next_token(); // consume ')'
-            return Some(args);
-        }
-
-        // first argument
-        self.next_token();
-        args.push(self.parse_expression(Precedence::Lowest)?);
-
-        // additional arguments
-        while self.peek_token.token_type == TokenType::Comma {
-            self.next_token(); // consume ','
-            self.next_token(); // move to the next argument
-            args.push(self.parse_expression(Precedence::Lowest)?);
-        }
-
-        if !self.expect_peek(TokenType::Rparen) {
-            return None;
-        }
-
-        Some(args)
     }
 
     fn parse_function_parameters(&mut self) -> Option<Vec<Identifier>> {
@@ -478,6 +584,92 @@ impl Parser {
         Some(WhileStatement { condition, body })
     }
 
+    fn parse_for_statement(&mut self) -> Option<ForStatement> {
+        // the current token is 'for'
+        if !self.expect_peek(TokenType::Lparen) {
+            return None;
+        }
+        // cur_token is now '('
+
+        // === INIT ===
+        // Move to the first token of init or ';'
+        self.next_token();
+
+        let init: Option<Box<Statement>> = if self.cur_token.token_type == TokenType::Semicolon {
+            // for (; cond; post)
+            None
+        } else if self.cur_token.token_type == TokenType::Let {
+            // for (let x = 0; ...
+            // parse_let_statement will parse up to (and consume) the ';'
+            let let_stmt = self.parse_let_statement()?;
+            Some(Box::new(Statement::Let(let_stmt)))
+        } else {
+            // for (expr; ...
+            // parse an expression, then explicitly require a ';'
+            let expr = self.parse_expression(Precedence::Lowest)?;
+            if !self.expect_peek(TokenType::Semicolon) {
+                return None;
+            }
+            let expr_stmt = ExpressionStatement { expression: expr };
+            Some(Box::new(Statement::Expression(expr_stmt)))
+        };
+
+        // After init, the current token should be the ';' that ends init.
+        // Move to the first token of condition or ';'
+        if self.cur_token.token_type != TokenType::Semicolon {
+            // if parse_let_statement consumed it internally, cur_token might already be after it;
+            // but in the usual Monkey-style parser it's sitting on the ';', so we don't hard-panic.
+        }
+        self.next_token();
+
+        // === CONDITION ===
+        let condition: Option<Expression> = if self.cur_token.token_type == TokenType::Semicolon {
+            // for (; ; post)  => no condition (treated like "true")
+            None
+        } else {
+            let expr = self.parse_expression(Precedence::Lowest)?;
+            // header syntax requires an ';' after the condition
+            if !self.expect_peek(TokenType::Semicolon) {
+                return None;
+            }
+            Some(expr)
+        };
+
+        // After condition, the current token is the ';' that ends the condition.
+        // Move to the first token of post or ')'
+        self.next_token();
+
+        // === POST ===
+        let post: Option<Box<Statement>> = if self.cur_token.token_type == TokenType::Rparen {
+            // for (...; ...; )  => no post
+            None
+        } else {
+            // parse post as a bare expression (no trailing ';' in the header)
+            let expr = self.parse_expression(Precedence::Lowest)?;
+            let expr_stmt = ExpressionStatement { expression: expr };
+
+            if !self.expect_peek(TokenType::Rparen) {
+                return None;
+            }
+
+            Some(Box::new(Statement::Expression(expr_stmt)))
+        };
+
+        // === BODY ===
+        if !self.expect_peek(TokenType::Lbrace) {
+            return None;
+        }
+        let body = self.parse_block_statement()?;
+
+        Some(ForStatement {
+            init,
+            condition,
+            post,
+            body,
+        })
+    }
+
+
     fn parse_string_literal(&mut self) -> Option<Expression> {
         Some(Expression::StringLiteral(StringLiteral {
             value: self.cur_token.literal.clone(),
@@ -491,26 +683,42 @@ impl Parser {
     }
 
     fn parse_expression_list(&mut self, end: TokenType) -> Option<Vec<Expression>> {
+        debug_log!(
+            "parse_expression_list: ENTER, end = {:?}, cur_token = {:?}, peek_token = {:?}",
+            end, self.cur_token, self.peek_token
+        );
+
         let mut list = Vec::new();
 
         if self.peek_token.token_type == end {
-            self.next_token(); // consume the end
+            debug_log!("parse_expression_list: empty list (peek == end)");
+            self.next_token(); // consume ')'
             return Some(list);
         }
 
-        self.next_token(); // move to the first expression
+        self.next_token(); // move to first argument
+        debug_log!(
+            "parse_expression_list: after first next_token, cur_token = {:?}, peek_token = {:?}",
+            self.cur_token, self.peek_token
+        );
+
         list.push(self.parse_expression(Precedence::Lowest)?);
+        debug_log!("parse_expression_list: after first arg, list = {:?}", list);
 
         while self.peek_token.token_type == TokenType::Comma {
+            debug_log!("parse_expression_list: found comma, parsing another arg");
             self.next_token(); // consume ','
-            self.next_token(); // move to the next expression
+            self.next_token(); // move to next argument
             list.push(self.parse_expression(Precedence::Lowest)?);
+            debug_log!("parse_expression_list: list now = {:?}", list);
         }
 
         if !self.expect_peek(end) {
+            debug_log!("parse_expression_list: expect_peek(end) failed");
             return None;
         }
 
+        debug_log!("parse_expression_list: EXIT with {:?}", list);
         Some(list)
     }
 

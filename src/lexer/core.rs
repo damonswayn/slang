@@ -85,7 +85,6 @@ impl Lexer {
             },
             Some('"') => {
                 let literal = self.read_string();
-                self.read_char(); // chomp the closing "
                 Token::new(TokenType::String, literal)
             },
             Some('+') => Token::new(TokenType::Plus, String::from("+")),
@@ -170,16 +169,19 @@ impl Lexer {
     }
 
     fn read_string(&mut self) -> String {
-        self.read_char(); // move past the opening "
-
+        // currently self.ch == '"'
+        self.read_char();            // move to first char after the quote
         let start = self.position;
-        while let Some(ch) = self.ch {
-            if ch == '"' { break; }
+
+        while self.ch != Some('"') && self.ch != Some('\0') {
             self.read_char();
         }
 
-        let literal: String = self.input[start..self.position].iter().collect();
-        literal
+        // at this point self.ch == '"' or '\0'
+        let s = self.input[start..self.position].iter().collect();
+
+        // DO NOT call read_char() here
+        s
     }
 }
 

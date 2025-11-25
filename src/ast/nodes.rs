@@ -26,6 +26,7 @@ pub enum Statement {
     Return(ReturnStatement),
     Expression(ExpressionStatement),
     While(WhileStatement),
+    For(ForStatement),
 }
 
 impl Display for Statement {
@@ -34,6 +35,7 @@ impl Display for Statement {
             Statement::Let(ls) => write!(f, "{}", ls),
             Statement::Return(rs) => write!(f, "{}", rs),
             Statement::While(ws) => write!(f, "{}", ws),
+            Statement::For(fs) => write!(f, "{}", fs),
             Statement::Expression(es) => write!(f, "{}", es),
         }
     }
@@ -98,6 +100,27 @@ impl Display for WhileStatement {
         write!(f, "while ({}) {{", self.condition)?;
         write!(f, "{}", self.body)?;
         write!(f, "}}")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ForStatement {
+    pub init: Option<Box<Statement>>,
+    pub condition: Option<Expression>,
+    pub post: Option<Box<Statement>>,
+    pub body: BlockStatement,
+}
+
+impl Display for ForStatement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "for (")?;
+        if let Some(init) = &self.init { write!(f, "{}", init)?; }
+        write!(f, "; ")?;
+        if let Some(cond) = &self.condition { write!(f, "{}", cond)?; }
+        write!(f, "; ")?;
+        if let Some(post) = &self.post { write!(f, "{}", post)?; }
+        write!(f, ") {}", self.body)?;
+        Ok(())
     }
 }
 

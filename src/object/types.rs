@@ -12,6 +12,7 @@ pub enum Object {
         body: BlockStatement,
         env: Environment,
     },
+    ReturnValue(Box<Object>),
     Null,
 }
 
@@ -22,6 +23,7 @@ impl Display for Object {
             Object::Float(x) => write!(f, "{}", x),
             Object::Boolean(b) => write!(f, "{}", if *b { "true" } else { "false" }),
             Object::Function { .. } => write!(f, "<native fn>"),
+            Object::ReturnValue(obj) => write!(f, "{}", obj.to_string()),
             Object::Null => write!(f, "null"),
         }
     }

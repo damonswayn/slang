@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::ast::{Expression, Identifier, InfixExpression, LetStatement, Program, Statement, BlockStatement, IfExpression, FunctionLiteral, CallExpression};
-use crate::ast::nodes::PrefixExpression;
+use crate::ast::nodes::{PrefixExpression, ReturnStatement};
 use crate::object::Object;
 
 /// Simple lexical environment for variables
@@ -47,6 +47,10 @@ pub fn eval(program: &Program, env: &mut Environment) -> Object {
 
     for stmt in &program.statements {
         result = eval_statement(stmt, env);
+
+        if let Object::ReturnValue(val) = result {
+            return *val;
+        }
     }
 
     result
@@ -55,6 +59,7 @@ pub fn eval(program: &Program, env: &mut Environment) -> Object {
 fn eval_statement(stmt: &Statement, env: &mut Environment) -> Object {
     match stmt {
         Statement::Let(ls) => eval_let_statement(ls, env),
+        Statement::Return(rs) => eval_return_statement(rs, env),
         Statement::Expression(es) => eval_expression(&es.expression, env),
     }
 }
@@ -180,6 +185,11 @@ fn eval_block_statement(block: &BlockStatement, env: &mut Environment) -> Object
 
     for stmt in &block.statements {
         result = eval_statement(stmt, env);
+
+        match result {
+            Object::ReturnValue(_) => return result,
+            _ => {}
+        }
     }
 
     result
@@ -252,10 +262,20 @@ fn apply_function(func: Object, args: Vec<Object>) -> Object {
                 extended_env.set(param.value.clone(), arg);
             }
 
-            eval_block_statement(&body, &mut extended_env)
+            let result = eval_block_statement(&body, &mut extended_env);
+
+            match result {
+                Object::ReturnValue(val) => *val,
+                _ => result,
+            }
         }
         _ => Object::Null, // later: return a proper error object
     }
+}
+
+fn eval_return_statement(rs: &ReturnStatement, env: &mut Environment) -> Object {
+    let val = eval_expression(&rs.return_value, env);
+    Object::ReturnValue(Box::new(val))
 }
 
 fn is_truthy(obj: &Object) -> bool {
@@ -481,5 +501,44 @@ mod tests {
 
         let obj = eval_input(input);
         assert_eq!(obj, Object::Integer(15));
+    }
+
+    #[test]
+    fn test_simple_return() {
+        let input = r#"
+        let f = function() { return 10; };
+        f();
+    "#;
+
+        let obj = eval_input(input);
+        assert_eq!(obj, Object::Integer(10));
+    }
+
+    #[test]
+    fn test_return_last_expression_fallback() {
+        let input = r#"
+        let f = function() { 10; 20; };
+        f();
+    "#;
+
+        let obj = eval_input(input);
+        assert_eq!(obj, Object::Integer(20));
+    }
+
+    #[test]
+    fn test_return_early_exit() {
+        let input = r#"
+        let f = function() {
+            let x = 1;
+            if (true) {
+                return 10;
+            }
+            x + 100; // should not run
+        };
+        f();
+    "#;
+
+        let obj = eval_input(input);
+        assert_eq!(obj, Object::Integer(10));
     }
 }

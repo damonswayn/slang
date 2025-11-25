@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::ast::{Program, Statement, Expression, Identifier, IntegerLiteral, InfixExpression, LetStatement, ExpressionStatement, IfExpression, BlockStatement, FunctionLiteral, CallExpression};
-use crate::ast::nodes::{BooleanLiteral, FloatLiteral, PrefixExpression};
+use crate::ast::nodes::{BooleanLiteral, FloatLiteral, PrefixExpression, ReturnStatement};
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
 
@@ -124,6 +124,7 @@ impl Parser {
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.cur_token.token_type {
             TokenType::Let => self.parse_let_statement().map(Statement::Let),
+            TokenType::Return => self.parse_return_statement().map(Statement::Return),
             _ => self.parse_expression_statement().map(Statement::Expression),
         }
     }
@@ -227,7 +228,7 @@ impl Parser {
 
     fn parse_grouped_expression(&mut self) -> Option<Expression> {
         // current is '('
-        self.next_token(); // move to first token inside
+        self.next_token(); // move to the first token inside
         let exp = self.parse_expression(Precedence::Lowest)?;
         if !self.expect_peek(TokenType::Rparen) {
             return None;
@@ -250,7 +251,7 @@ impl Parser {
     fn parse_prefix_expression(&mut self) -> Option<Expression> {
         let operator = self.cur_token.literal.clone();
 
-        self.next_token(); // move to right-hand side
+        self.next_token(); // move to the right-hand side
 
         let right = self.parse_expression(Precedence::Prefix)?;
 
@@ -299,12 +300,12 @@ impl Parser {
     }
 
     fn parse_if_expression(&mut self) -> Option<Expression> {
-        // current token is 'if'
+        // the current token is 'if'
         if !self.expect_peek(TokenType::Lparen) {
             return None;
         }
 
-        self.next_token(); // move to first token inside '('
+        self.next_token(); // move to the first token inside '('
         let condition = self.parse_expression(Precedence::Lowest)?;
         if !self.expect_peek(TokenType::Rparen) {
             return None;
@@ -392,7 +393,7 @@ impl Parser {
         // additional arguments
         while self.peek_token.token_type == TokenType::Comma {
             self.next_token(); // consume ','
-            self.next_token(); // move to next argument
+            self.next_token(); // move to the next argument
             args.push(self.parse_expression(Precedence::Lowest)?);
         }
 
@@ -428,6 +429,27 @@ impl Parser {
         }
 
         Some(params)
+    }
+
+    fn parse_return_statement(&mut self) -> Option<ReturnStatement> {
+        // the current token is 'return'
+        self.next_token(); // move to start of expression
+
+        // We allow: return; (no value) which just returns null
+        if self.cur_token.token_type == TokenType::Semicolon {
+            return Some(ReturnStatement {
+                return_value: Expression::IntegerLiteral(IntegerLiteral { value: 0 }), // placeholder if you want, or special-case in evaluator
+            });
+        }
+
+        let value = self.parse_expression(Precedence::Lowest)?;
+
+        // optional semicolon
+        if self.peek_token.token_type == TokenType::Semicolon {
+            self.next_token();
+        }
+
+        Some(ReturnStatement { return_value: value })
     }
 }
 

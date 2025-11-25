@@ -23,6 +23,7 @@ impl Display for Program {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     Let(LetStatement),
+    Return(ReturnStatement),
     Expression(ExpressionStatement),
 }
 
@@ -30,6 +31,7 @@ impl Display for Statement {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Statement::Let(ls) => write!(f, "{}", ls),
+            Statement::Return(rs) => write!(f, "{}", rs),
             Statement::Expression(es) => write!(f, "{}", es),
         }
     }
@@ -69,6 +71,17 @@ impl Display for BlockStatement {
             write!(f, "{}", stmt)?;
         }
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReturnStatement {
+    pub return_value: Expression,
+}
+
+impl Display for ReturnStatement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "return {};", self.return_value)
     }
 }
 

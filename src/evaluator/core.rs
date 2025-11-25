@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
 use crate::ast::nodes::{PrefixExpression, ReturnStatement};
-use crate::ast::{
-    BlockStatement, CallExpression, Expression, FunctionLiteral, Identifier, IfExpression,
-    InfixExpression, LetStatement, Program, Statement, WhileStatement,
-};
+use crate::ast::{ArrayLiteral, BlockStatement, CallExpression, Expression, FunctionLiteral, Identifier, IfExpression, IndexExpression, InfixExpression, LetStatement, Program, Statement, WhileStatement};
 use crate::object::Object;
 
 /// Simple lexical environment for variables
@@ -87,6 +84,8 @@ fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
         Expression::Prefix(p) => eval_prefix_expression(p, env),
         Expression::FunctionLiteral(fl) => eval_function_literal(fl, env),
         Expression::CallExpression(call) => eval_call_expression(call, env),
+        Expression::ArrayLiteral(al) => eval_array_literal(al, env),
+        Expression::IndexExpression(ix) => eval_index_expression(ix, env),
     }
 }
 
@@ -318,7 +317,37 @@ fn eval_string_infix(op: &str, left: &str, right: &str) -> Object {
     }
 }
 
+fn eval_array_literal(al: &ArrayLiteral, env: &mut Environment) -> Object {
+    let elements = al
+        .elements
+        .iter()
+        .map(|e| eval_expression(e, env))
+        .collect::<Vec<_>>();
+    Object::Array(elements)
+}
 
+fn eval_index_expression(ix: &IndexExpression, env: &mut Environment) -> Object {
+    let left = eval_expression(&ix.left, env);
+    let index = eval_expression(&ix.index, env);
+
+    match (left, index) {
+        (Object::Array(arr), Object::Integer(i)) => eval_array_index(arr, i),
+        _ => Object::Null,
+    }
+}
+
+fn eval_array_index(arr: Vec<Object>, index: i64) -> Object {
+    if index < 0 {
+        return Object::Null;
+    }
+
+    let idx = index as usize;
+    if idx >= arr.len() {
+        Object::Null
+    } else {
+        arr[idx].clone()
+    }
+}
 
 fn is_truthy(obj: &Object) -> bool {
     match obj {
@@ -650,6 +679,54 @@ mod tests {
                 Object::Boolean(b) => assert_eq!(b, expected, "input: {}", input),
                 _ => panic!("expected boolean, got {:?}", obj),
             }
+        }
+    }
+
+    #[test]
+    fn test_array_literal() {
+        let input = "[1, 2, 3];";
+
+        let obj = eval_input(input);
+        match obj {
+            Object::Array(elements) => {
+                assert_eq!(elements.len(), 3);
+                assert_eq!(elements[0], Object::Integer(1));
+                assert_eq!(elements[1], Object::Integer(2));
+                assert_eq!(elements[2], Object::Integer(3));
+            }
+            _ => panic!("expected array, got {:?}", obj),
+        }
+    }
+
+    #[test]
+    fn test_array_indexing() {
+        let tests = vec![
+            ("[1, 2, 3][0];", Some(1)),
+            ("[1, 2, 3][1];", Some(2)),
+            ("[1, 2, 3][2];", Some(3)),
+            ("let a = [1, 2, 3]; a[1];", Some(2)),
+            ("[1, 2, 3][3];", None),    // out of range -> null
+            ("[1, 2, 3][-1];", None),   // negative -> null
+        ];
+
+        for (input, expected) in tests {
+            let obj = eval_input(input);
+            match (expected, obj) {
+                (Some(v), Object::Integer(i)) => assert_eq!(i, v, "input: {}", input),
+                (None, Object::Null)          => {},
+                _ => panic!("unexpected result for '{}'", input),
+            }
+        }
+    }
+
+    #[test]
+    fn test_nested_array_indexing() {
+        let input = "let a = [1, [2, 3], 4]; a[1][0];";
+
+        let obj = eval_input(input);
+        match obj {
+            Object::Integer(i) => assert_eq!(i, 2),
+            _ => panic!("expected integer, got {:?}", obj),
         }
     }
 }

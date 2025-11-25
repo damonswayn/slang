@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ast::{Program, Statement, Expression, Identifier, IntegerLiteral, InfixExpression, LetStatement, ExpressionStatement, IfExpression, BlockStatement, FunctionLiteral, CallExpression, WhileStatement, StringLiteral};
+use crate::ast::{Program, Statement, Expression, Identifier, IntegerLiteral, InfixExpression, LetStatement, ExpressionStatement, IfExpression, BlockStatement, FunctionLiteral, CallExpression, WhileStatement, StringLiteral, ArrayLiteral, IndexExpression};
 use crate::ast::nodes::{BooleanLiteral, FloatLiteral, PrefixExpression, ReturnStatement};
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
@@ -28,6 +28,7 @@ fn precedence_of(ttype: &TokenType) -> Precedence {
         Plus | Minus => Precedence::Sum,
         Mul | Div | Mod => Precedence::Product,
         Lparen => Precedence::Call,
+        Lbracket => Precedence::Call,
         _ => Precedence::Lowest,
     }
 }
@@ -72,6 +73,7 @@ impl Parser {
         p.register_prefix(TokenType::Minus, Parser::parse_prefix_expression);
         p.register_prefix(TokenType::Function, Parser::parse_function_literal);
         p.register_prefix(TokenType::String, Parser::parse_string_literal);
+        p.register_prefix(TokenType::Lbracket, Parser::parse_array_literal);
 
         // register infix parsers
         p.register_infix(TokenType::Equal, Parser::parse_infix_expression);
@@ -90,6 +92,7 @@ impl Parser {
         p.register_infix(TokenType::Mod, Parser::parse_infix_expression);
 
         p.register_infix(TokenType::Lparen, Parser::parse_call_expression);
+        p.register_infix(TokenType::Lbracket, Parser::parse_index_expression);
 
         p
     }
@@ -479,6 +482,52 @@ impl Parser {
         Some(Expression::StringLiteral(StringLiteral {
             value: self.cur_token.literal.clone(),
         }))
+    }
+
+    fn parse_array_literal(&mut self) -> Option<Expression> {
+        // current token is '['
+        let elements = self.parse_expression_list(TokenType::Rbracket)?;
+        Some(Expression::ArrayLiteral(ArrayLiteral { elements }))
+    }
+
+    fn parse_expression_list(&mut self, end: TokenType) -> Option<Vec<Expression>> {
+        let mut list = Vec::new();
+
+        if self.peek_token.token_type == end {
+            self.next_token(); // consume the end
+            return Some(list);
+        }
+
+        self.next_token(); // move to the first expression
+        list.push(self.parse_expression(Precedence::Lowest)?);
+
+        while self.peek_token.token_type == TokenType::Comma {
+            self.next_token(); // consume ','
+            self.next_token(); // move to the next expression
+            list.push(self.parse_expression(Precedence::Lowest)?);
+        }
+
+        if !self.expect_peek(end) {
+            return None;
+        }
+
+        Some(list)
+    }
+
+    fn parse_index_expression(&mut self, left: Expression) -> Option<Expression> {
+        // current token is '['
+        self.next_token(); // move to index expression
+
+        let index = self.parse_expression(Precedence::Lowest)?;
+
+        if !self.expect_peek(TokenType::Rbracket) {
+            return None;
+        }
+
+        Some(Expression::IndexExpression(Box::new(IndexExpression {
+            left: Box::new(left),
+            index: Box::new(index),
+        })))
     }
 }
 

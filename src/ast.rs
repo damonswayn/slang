@@ -17,4 +17,6 @@ pub use nodes::{
     ReturnStatement,
     WhileStatement,
     StringLiteral,
+    ArrayLiteral,
+    IndexExpression,
 };

@@ -8,6 +8,7 @@ pub enum Object {
     Float(f64),
     Boolean(bool),
     String(String),
+    Array(Vec<Object>),
     Function {
         params: Vec<Identifier>,
         body: BlockStatement,
@@ -24,6 +25,14 @@ impl Display for Object {
             Object::Float(x) => write!(f, "{}", x),
             Object::Boolean(b) => write!(f, "{}", if *b { "true" } else { "false" }),
             Object::String(s) => write!(f, "\"{}\"", s),
+            Object::Array(elements) => {
+                let inner = elements
+                    .iter()
+                    .map(|o| format!("{}", o))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, "[{}]", inner)
+            },
             Object::Function { .. } => write!(f, "<native fn>"),
             Object::ReturnValue(obj) => write!(f, "{}", obj.to_string()),
             Object::Null => write!(f, "null"),

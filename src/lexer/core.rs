@@ -99,6 +99,8 @@ impl Lexer {
             Some('}') => Token::new(TokenType::Rbrace, String::from("}")),
             Some(';') => Token::new(TokenType::Semicolon, String::from(";")),
             Some(',') => Token::new(TokenType::Comma, String::from(",")),
+            Some('[' ) => Token::new(TokenType::Lbracket, String::from("[")),
+            Some(']') => Token::new(TokenType::Rbracket, String::from("]")),
             None => Token::new(TokenType::Eof, String::from("")),
             Some(ch) => {
                 if is_letter(ch) {

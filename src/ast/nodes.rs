@@ -126,6 +126,8 @@ pub enum Expression {
     Prefix(Box<PrefixExpression>),
     FunctionLiteral(FunctionLiteral),
     CallExpression(Box<CallExpression>),
+    ArrayLiteral(ArrayLiteral),
+    IndexExpression(Box<IndexExpression>),
 }
 
 impl Display for Expression {
@@ -141,6 +143,8 @@ impl Display for Expression {
             Expression::Prefix(prefix) => write!(f, "{}", prefix),
             Expression::FunctionLiteral(fl) => write!(f, "{}", fl),
             Expression::CallExpression(call) => write!(f, "{}", call),
+            Expression::ArrayLiteral(al) => write!(f, "{}", al),
+            Expression::IndexExpression(ie) => write!(f, "{}", ie),
         }
     }
 }
@@ -187,6 +191,36 @@ impl Display for StringLiteral {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         // You can print without quotes or with; I’ll include quotes:
         write!(f, "\"{}\"", self.value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ArrayLiteral {
+    pub elements: Vec<Expression>,
+}
+
+impl Display for ArrayLiteral {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "[")?;
+        for (i, e) in self.elements.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", e)?;
+        }
+        write!(f, "]")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct IndexExpression {
+    pub left: Box<Expression>,
+    pub index: Box<Expression>,
+}
+
+impl Display for IndexExpression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}[{}]", self.left, self.index)
     }
 }
 

@@ -29,6 +29,7 @@ pub enum TokenType {
 
     Lparen, Rparen,
     Lbrace, Rbrace,
+    Lbracket, Rbracket,
     Semicolon,
     Comma,
 

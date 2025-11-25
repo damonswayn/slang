@@ -9,6 +9,7 @@ pub fn lookup_ident(ident: &str) -> TokenType {
         "else" => TokenType::Else,
         "function" => TokenType::Function,
         "return" => TokenType::Return,
+        "while" => TokenType::While,
         _ => TokenType::Ident
     }
 }

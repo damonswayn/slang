@@ -14,4 +14,6 @@ pub use nodes::{
     PrefixExpression,
     FunctionLiteral,
     CallExpression,
+    ReturnStatement,
+    WhileStatement,
 };

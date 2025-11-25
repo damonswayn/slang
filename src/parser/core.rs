@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ast::{Program, Statement, Expression, Identifier, IntegerLiteral, InfixExpression, LetStatement, ExpressionStatement, IfExpression, BlockStatement, FunctionLiteral, CallExpression};
+use crate::ast::{Program, Statement, Expression, Identifier, IntegerLiteral, InfixExpression, LetStatement, ExpressionStatement, IfExpression, BlockStatement, FunctionLiteral, CallExpression, WhileStatement};
 use crate::ast::nodes::{BooleanLiteral, FloatLiteral, PrefixExpression, ReturnStatement};
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
@@ -125,6 +125,7 @@ impl Parser {
         match self.cur_token.token_type {
             TokenType::Let => self.parse_let_statement().map(Statement::Let),
             TokenType::Return => self.parse_return_statement().map(Statement::Return),
+            TokenType::While => self.parse_while_statement().map(Statement::While),
             _ => self.parse_expression_statement().map(Statement::Expression),
         }
     }
@@ -451,6 +452,28 @@ impl Parser {
 
         Some(ReturnStatement { return_value: value })
     }
+
+    fn parse_while_statement(&mut self) -> Option<WhileStatement> {
+        // the current token is 'while'
+        if !self.expect_peek(TokenType::Lparen) {
+            return None;
+        }
+
+        self.next_token(); // move to the first token inside '('
+        let condition = self.parse_expression(Precedence::Lowest)?;
+        if !self.expect_peek(TokenType::Rparen) {
+            return None;
+        }
+
+        if !self.expect_peek(TokenType::Lbrace) {
+            return None;
+        }
+
+        let body = self.parse_block_statement()?;
+
+        Some(WhileStatement { condition, body })
+    }
+
 }
 
 #[cfg(test)]

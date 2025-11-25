@@ -25,6 +25,7 @@ pub enum Statement {
     Let(LetStatement),
     Return(ReturnStatement),
     Expression(ExpressionStatement),
+    While(WhileStatement),
 }
 
 impl Display for Statement {
@@ -32,6 +33,7 @@ impl Display for Statement {
         match self {
             Statement::Let(ls) => write!(f, "{}", ls),
             Statement::Return(rs) => write!(f, "{}", rs),
+            Statement::While(ws) => write!(f, "{}", ws),
             Statement::Expression(es) => write!(f, "{}", es),
         }
     }
@@ -82,6 +84,20 @@ pub struct ReturnStatement {
 impl Display for ReturnStatement {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "return {};", self.return_value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhileStatement {
+    pub condition: Expression,
+    pub body: BlockStatement,
+}
+
+impl Display for WhileStatement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "while ({}) {{", self.condition)?;
+        write!(f, "{}", self.body)?;
+        write!(f, "}}")
     }
 }
 

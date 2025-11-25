@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
-use crate::ast::{Expression, Identifier, InfixExpression, LetStatement, Program, Statement, BlockStatement, IfExpression, FunctionLiteral, CallExpression};
 use crate::ast::nodes::{PrefixExpression, ReturnStatement};
+use crate::ast::{
+    BlockStatement, CallExpression, Expression, FunctionLiteral, Identifier, IfExpression,
+    InfixExpression, LetStatement, Program, Statement, WhileStatement,
+};
 use crate::object::Object;
 
 /// Simple lexical environment for variables
@@ -60,6 +63,7 @@ fn eval_statement(stmt: &Statement, env: &mut Environment) -> Object {
     match stmt {
         Statement::Let(ls) => eval_let_statement(ls, env),
         Statement::Return(rs) => eval_return_statement(rs, env),
+        Statement::While(ws) => eval_while_statement(ws, env),
         Statement::Expression(es) => eval_expression(&es.expression, env),
     }
 }
@@ -155,15 +159,15 @@ fn eval_integer_infix(op: &str, left: i64, right: i64) -> Object {
 
 fn eval_float_infix(op: &str, left: f64, right: f64) -> Object {
     match op {
-        "+"  => Object::Float(left + right),
-        "-"  => Object::Float(left - right),
-        "*"  => Object::Float(left * right),
-        "/"  => Object::Float(left / right),
-        "%"  => Object::Float(left % right),
+        "+" => Object::Float(left + right),
+        "-" => Object::Float(left - right),
+        "*" => Object::Float(left * right),
+        "/" => Object::Float(left / right),
+        "%" => Object::Float(left % right),
 
-        "<"  => Object::Boolean(left < right),
+        "<" => Object::Boolean(left < right),
         "<=" => Object::Boolean(left <= right),
-        ">"  => Object::Boolean(left > right),
+        ">" => Object::Boolean(left > right),
         ">=" => Object::Boolean(left >= right),
         "==" => Object::Boolean(left == right),
         "!=" => Object::Boolean(left != right),
@@ -213,23 +217,23 @@ fn eval_prefix_expression(pe: &PrefixExpression, env: &mut Environment) -> Objec
     match pe.operator.as_str() {
         "!" => eval_bang_operator(right),
         "-" => eval_minus_prefix(right), // already existing
-        _   => Object::Null,
+        _ => Object::Null,
     }
 }
 
 fn eval_bang_operator(obj: Object) -> Object {
     match obj {
         Object::Boolean(b) => Object::Boolean(!b),
-        Object::Null       => Object::Boolean(true),
-        _                  => Object::Boolean(false),
+        Object::Null => Object::Boolean(true),
+        _ => Object::Boolean(false),
     }
 }
 
 fn eval_minus_prefix(obj: Object) -> Object {
     match obj {
         Object::Integer(i) => Object::Integer(-i),
-        Object::Float(f)   => Object::Float(-f),
-        _                       => Object::Null, // or some error type later
+        Object::Float(f) => Object::Float(-f),
+        _ => Object::Null, // or some error type later
     }
 }
 
@@ -278,14 +282,34 @@ fn eval_return_statement(rs: &ReturnStatement, env: &mut Environment) -> Object 
     Object::ReturnValue(Box::new(val))
 }
 
+fn eval_while_statement(ws: &WhileStatement, env: &mut Environment) -> Object {
+    let mut result = Object::Null;
+
+    loop {
+        let cond = eval_expression(&ws.condition, env);
+        if !is_truthy(&cond) {
+            break;
+        }
+
+        result = eval_block_statement(&ws.body, env);
+
+        // propagate return out of the loop
+        if let Object::ReturnValue(_) = result {
+            return result;
+        }
+    }
+
+    result
+}
+
+
 fn is_truthy(obj: &Object) -> bool {
     match obj {
         Object::Boolean(false) => false,
-        Object::Null           => false,
-        _                      => true, // everything else is truthy
+        Object::Null => false,
+        _ => true, // everything else is truthy
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -297,9 +321,6 @@ mod tests {
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
-
-        // Debug: see what AST the parser is producing
-        eprintln!("AST: {}", program);
 
         let mut env = Environment::new();
         eval(&program, &mut env)
@@ -371,7 +392,7 @@ mod tests {
             ("10.0 - 3.5;", 6.5),
             ("2.0 * 4.5;", 9.0),
             ("9.0 / 4.5;", 2.0),
-            ("1.0 < 2.0;", 1.0),  // use 1.0 for true if you want? or test as boolean separately
+            ("1.0 < 2.0;", 1.0), // use 1.0 for true if you want? or test as boolean separately
         ];
 
         for (input, expected) in &tests[0..4] {
@@ -407,7 +428,7 @@ mod tests {
             let obj = eval_input(input);
             match (expected, &obj) {
                 (Some(v), Object::Integer(i)) => assert_eq!(*i, v, "input: {}", input),
-                (None, Object::Null)          => {},
+                (None, Object::Null) => {}
                 _ => panic!("unexpected result for '{}': {:?}", input, obj),
             }
         }
@@ -416,11 +437,11 @@ mod tests {
     #[test]
     fn test_unary_minus_and_not() {
         let tests = vec![
-            ("-5;",      Object::Integer(-5)),
-            ("-10 + 5;", Object::Integer(-5)),       // (-10) + 5
+            ("-5;", Object::Integer(-5)),
+            ("-10 + 5;", Object::Integer(-5)), // (-10) + 5
             ("-(1 + 2);", Object::Integer(-3)),
-            ("-1.5;",    Object::Float(-1.5)),
-            ("!-true;",  Object::Boolean(true)),
+            ("-1.5;", Object::Float(-1.5)),
+            ("!-true;", Object::Boolean(true)),
         ];
 
         for (input, expected) in tests {
@@ -445,15 +466,12 @@ mod tests {
             ("!false;", true),
             ("!!true;", true),
             ("!!false;", false),
-
             ("true && true;", true),
             ("true && false;", false),
             ("false && true;", false),
-
             ("true || false;", true),
             ("false || false;", false),
             ("false || true;", true),
-
             ("1 < 2 && 2 < 3;", true),
             ("1 < 2 && 2 > 3;", false),
             ("1 > 2 || 2 > 3;", false),
@@ -540,5 +558,42 @@ mod tests {
 
         let obj = eval_input(input);
         assert_eq!(obj, Object::Integer(10));
+    }
+
+    #[test]
+    fn test_while_loop_basic() {
+        let input = r#"
+        let x = 0;
+        while (x < 5) {
+            let x = x + 1;
+        }
+        x;
+    "#;
+
+        let obj = eval_input(input);
+        match obj {
+            Object::Integer(i) => assert_eq!(i, 5),
+            _ => panic!("expected integer, got {:?}", obj),
+        }
+    }
+
+    #[test]
+    fn test_while_with_return() {
+        let input = r#"
+        let f = fn() {
+            let x = 0;
+            while (x < 5) {
+                if (x == 3) {
+                    return x;
+                }
+                let x = x + 1;
+            }
+            99;
+        };
+        f();
+    "#;
+
+        let obj = eval_input(input);
+        assert_eq!(obj, Object::Integer(3));
     }
 }

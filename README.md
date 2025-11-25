@@ -72,3 +72,12 @@ f();
 "hello" + " " + "world";
 // outputs "hello world"
 ```
+
+### For loops (also arrays)
+
+```
+let a = [1, 2, 3, 4, 5];
+for (let i = 0; i < len(a); i = i + 1) {
+	print(a[i]);
+}
+```

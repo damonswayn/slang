@@ -145,8 +145,8 @@ fn eval_integer_infix(op: &str, left: i64, right: i64) -> Object {
         "+" => Object::Integer(left + right),
         "-" => Object::Integer(left - right),
         "*" => Object::Integer(left * right),
-        "/" => Object::Integer(left / right),
-        "%" => Object::Integer(left % right),
+        "/" => Object::Float(left as f64 / right as f64),
+        "%" => Object::Float(left as f64 % right as f64),
 
         "<" => Object::Boolean(left < right),
         "<=" => Object::Boolean(left <= right),
@@ -386,6 +386,7 @@ mod tests {
             let obj = eval_input(input);
             match obj {
                 Object::Integer(i) => assert_eq!(i, expected, "input: {}", input),
+                Object::Float(f) => assert!((f - expected as f64).abs() < 1e-9, "input: {}", input),
                 _ => panic!("expected integer for '{}', got {:?}", input, obj),
             }
         }

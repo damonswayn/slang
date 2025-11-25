@@ -48,3 +48,27 @@ let add = function(x, y) { x + y };
 add(5, 10);
 // outputs 15
 ```
+
+### While loops
+
+```
+let f = fn() {
+    let x = 0;
+    while (x < 5) {
+        if (x == 3) {
+            return x;
+        }
+        let x = x + 1;
+    }
+    99;
+};
+
+f();
+```
+
+### String literals
+
+```
+"hello" + " " + "world";
+// outputs "hello world"
+```

@@ -1,37 +1,40 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
-
+use std::rc::Rc;
 use crate::ast::nodes::{ForStatement, PrefixExpression, ReturnStatement};
 use crate::ast::{ArrayLiteral, BlockStatement, CallExpression, Expression, FunctionLiteral, Identifier, IfExpression, IndexExpression, InfixExpression, LetStatement, Program, Statement, WhileStatement};
 use crate::{builtins, debug_log};
 use crate::object::Object;
 
+pub type EnvRef = Rc<RefCell<Environment>>;
+
 /// Simple lexical environment for variables
 #[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
     store: HashMap<String, Object>,
-    outer: Option<Box<Environment>>,
+    outer: Option<EnvRef>,
 }
 
 impl Environment {
-    pub fn new() -> Self {
-        Environment {
+    pub fn new() -> EnvRef {
+        Rc::new(RefCell::new(Environment {
             store: HashMap::new(),
             outer: None,
-        }
+        }))
     }
 
-    pub fn new_enclosed(outer: Environment) -> Self {
-        Environment {
+    pub fn new_enclosed(outer: EnvRef) -> EnvRef {
+        Rc::new(RefCell::new(Environment {
             store: HashMap::new(),
-            outer: Some(Box::new(outer)),
-        }
+            outer: Some(outer),
+        }))
     }
 
     pub fn get(&self, name: &str) -> Option<Object> {
-        if let Some(obj) = self.store.get(name) {
-            Some(obj.clone())
+        if let Some(val) = self.store.get(name) {
+            Some(val.clone())
         } else if let Some(ref outer) = self.outer {
-            outer.get(name)
+            outer.borrow().get(name)
         } else {
             None
         }
@@ -43,11 +46,11 @@ impl Environment {
 }
 
 /// Entry point: evaluate a whole program
-pub fn eval(program: &Program, env: &mut Environment) -> Object {
+pub fn eval(program: &Program, env: EnvRef) -> Object {
     let mut result = Object::Null;
 
     for stmt in &program.statements {
-        result = eval_statement(stmt, env);
+        result = eval_statement(stmt, Rc::clone(&env));
 
         if let Object::ReturnValue(val) = result {
             return *val;
@@ -57,24 +60,24 @@ pub fn eval(program: &Program, env: &mut Environment) -> Object {
     result
 }
 
-fn eval_statement(stmt: &Statement, env: &mut Environment) -> Object {
+fn eval_statement(stmt: &Statement, env: EnvRef) -> Object {
     match stmt {
-        Statement::Let(ls) => eval_let_statement(ls, env),
-        Statement::Return(rs) => eval_return_statement(rs, env),
-        Statement::While(ws) => eval_while_statement(ws, env),
-        Statement::For(fs) => eval_for_statement(fs, env),
-        Statement::Expression(es) => eval_expression(&es.expression, env),
+        Statement::Let(ls) => eval_let_statement(ls, Rc::clone(&env)),
+        Statement::Return(rs) => eval_return_statement(rs, Rc::clone(&env)),
+        Statement::While(ws) => eval_while_statement(ws, Rc::clone(&env)),
+        Statement::For(fs) => eval_for_statement(fs, Rc::clone(&env)),
+        Statement::Expression(es) => eval_expression(&es.expression, Rc::clone(&env)),
     }
 }
 
-fn eval_let_statement(ls: &LetStatement, env: &mut Environment) -> Object {
-    let val = eval_expression(&ls.value, env);
-    env.set(ls.name.value.clone(), val.clone());
+fn eval_let_statement(ls: &LetStatement, env: EnvRef) -> Object {
+    let val = eval_expression(&ls.value, Rc::clone(&env));
+    env.borrow_mut().set(ls.name.value.clone(), val.clone());
     // let itself doesn't produce a useful value
     Object::Null
 }
 
-fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
+fn eval_expression(expr: &Expression, env: EnvRef) -> Object {
     match expr {
         Expression::Identifier(ident) => eval_identifier(ident, env),
         Expression::IntegerLiteral(il) => Object::Integer(il.value),
@@ -91,10 +94,11 @@ fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
     }
 }
 
-fn eval_identifier(ident: &Identifier, env: &Environment) -> Object {
+fn eval_identifier(ident: &Identifier, env: EnvRef) -> Object {
     debug_log!("eval_identifier: looking up '{}'", ident.value);
 
-    if let Some(val) = env.get(&ident.value) {
+    let env_borrow = env.borrow();
+    if let Some(val) = env_borrow.get(&ident.value) {
         debug_log!("  found in env: {:?}", val);
         return val;
     }
@@ -108,16 +112,16 @@ fn eval_identifier(ident: &Identifier, env: &Environment) -> Object {
     Object::Null
 }
 
-fn eval_infix_expression(infix: &InfixExpression, env: &mut Environment) -> Object {
-    let left = eval_expression(&infix.left, env);
-    let right = eval_expression(&infix.right, env);
+fn eval_infix_expression(infix: &InfixExpression, env: EnvRef) -> Object {
+    let left = eval_expression(&infix.left, Rc::clone(&env));
+    let right = eval_expression(&infix.right, Rc::clone(&env));
 
     let op = infix.operator.as_str();
 
     if op == "=" {
         if let Expression::Identifier(Identifier {value: name}) = &*infix.left {
-            let value = eval_expression(&infix.right, env);
-            env.set(name.clone(), value.clone());
+            let value = eval_expression(&infix.right, Rc::clone(&env));
+            env.borrow_mut().set(name.clone(), value.clone());
             return value;
         } else {
             return Object::Null;
@@ -125,24 +129,24 @@ fn eval_infix_expression(infix: &InfixExpression, env: &mut Environment) -> Obje
     }
 
     if op == "&&" {
-        let left = eval_expression(&infix.left, env);
+        let left = eval_expression(&infix.left, Rc::clone(&env));
 
         if !is_truthy(&left) {
             return Object::Boolean(false);
         }
 
-        let right = eval_expression(&infix.right, env);
+        let right = eval_expression(&infix.right, Rc::clone(&env));
         return Object::Boolean(is_truthy(&right));
     }
 
     if op == "||" {
-        let left = eval_expression(&infix.left, env);
+        let left = eval_expression(&infix.left, Rc::clone(&env));
 
         if is_truthy(&left) {
             return Object::Boolean(true);
         }
 
-        let right = eval_expression(&infix.right, env);
+        let right = eval_expression(&infix.right, Rc::clone(&env));
         return Object::Boolean(is_truthy(&right));
     }
 
@@ -205,11 +209,11 @@ fn eval_boolean_infix(op: &str, left: bool, right: bool) -> Object {
     }
 }
 
-fn eval_block_statement(block: &BlockStatement, env: &mut Environment) -> Object {
+fn eval_block_statement(block: &BlockStatement, env: EnvRef) -> Object {
     let mut result = Object::Null;
 
     for stmt in &block.statements {
-        result = eval_statement(stmt, env);
+        result = eval_statement(stmt, Rc::clone(&env));
 
         match result {
             Object::ReturnValue(_) => return result,
@@ -220,20 +224,20 @@ fn eval_block_statement(block: &BlockStatement, env: &mut Environment) -> Object
     result
 }
 
-fn eval_if_expression(ifexpr: &IfExpression, env: &mut Environment) -> Object {
-    let condition = eval_expression(&ifexpr.condition, env);
+fn eval_if_expression(ifexpr: &IfExpression, env: EnvRef) -> Object {
+    let condition = eval_expression(&ifexpr.condition, Rc::clone(&env));
 
     if is_truthy(&condition) {
-        eval_block_statement(&ifexpr.consequence, env)
+        eval_block_statement(&ifexpr.consequence, Rc::clone(&env))
     } else if let Some(alt) = &ifexpr.alternative {
-        eval_block_statement(alt, env)
+        eval_block_statement(alt, Rc::clone(&env))
     } else {
         Object::Null
     }
 }
 
-fn eval_prefix_expression(pe: &PrefixExpression, env: &mut Environment) -> Object {
-    let right = eval_expression(&pe.right, env);
+fn eval_prefix_expression(pe: &PrefixExpression, env: EnvRef) -> Object {
+    let right = eval_expression(&pe.right, Rc::clone(&env));
 
     match pe.operator.as_str() {
         "!" => eval_bang_operator(right),
@@ -258,20 +262,20 @@ fn eval_minus_prefix(obj: Object) -> Object {
     }
 }
 
-fn eval_function_literal(fl: &FunctionLiteral, env: &Environment) -> Object {
+fn eval_function_literal(fl: &FunctionLiteral, env: EnvRef) -> Object {
     Object::Function {
         params: fl.params.clone(),
         body: fl.body.clone(),
-        env: env.clone(), // capture defining environment (simple closures)
+        env
     }
 }
 
-fn eval_call_expression(call: &CallExpression, env: &mut Environment) -> Object {
-    let function = eval_expression(&call.function, env);
+fn eval_call_expression(call: &CallExpression, env: EnvRef) -> Object {
+    let function = eval_expression(&call.function, Rc::clone(&env));
     let args: Vec<Object> = call
         .arguments
         .iter()
-        .map(|arg| eval_expression(arg, env))
+        .map(|arg| eval_expression(arg, Rc::clone(&env)))
         .collect();
 
     apply_function(function, args)
@@ -280,40 +284,50 @@ fn eval_call_expression(call: &CallExpression, env: &mut Environment) -> Object 
 fn apply_function(func: Object, args: Vec<Object>) -> Object {
     match func {
         Object::Function { params, body, env } => {
-            // new environment that *encloses* the defining env
-            let mut extended_env = Environment::new_enclosed(env);
+            // // new environment that *encloses* the defining env
+            // let mut extended_env = Environment::new_enclosed(env);
+            //
+            // for (param, arg) in params.iter().zip(args.into_iter()) {
+            //     extended_env.set(param.value.clone(), arg);
+            // }
+            //
+            // let result = eval_block_statement(&body, &mut extended_env);
+            //
+            // match result {
+            //     Object::ReturnValue(val) => *val,
+            //     _ => result,
+            // }
+            let extended = Environment::new_enclosed(env);
 
-            for (param, arg) in params.iter().zip(args.into_iter()) {
-                extended_env.set(param.value.clone(), arg);
+            {
+                let mut inner = extended.borrow_mut();
+                for (param, arg) in params.iter().zip(args.into_iter()) {
+                    inner.set(param.value.clone(), arg);
+                }
             }
 
-            let result = eval_block_statement(&body, &mut extended_env);
-
-            match result {
-                Object::ReturnValue(val) => *val,
-                _ => result,
-            }
+            eval_block_statement(&body, extended)
         },
         Object::Builtin(f) => f(args),
         _ => Object::Null, // later: return a proper error object
     }
 }
 
-fn eval_return_statement(rs: &ReturnStatement, env: &mut Environment) -> Object {
-    let val = eval_expression(&rs.return_value, env);
+fn eval_return_statement(rs: &ReturnStatement, env: EnvRef) -> Object {
+    let val = eval_expression(&rs.return_value, Rc::clone(&env));
     Object::ReturnValue(Box::new(val))
 }
 
-fn eval_while_statement(ws: &WhileStatement, env: &mut Environment) -> Object {
+fn eval_while_statement(ws: &WhileStatement, env: EnvRef) -> Object {
     let mut result = Object::Null;
 
     loop {
-        let cond = eval_expression(&ws.condition, env);
+        let cond = eval_expression(&ws.condition, Rc::clone(&env));
         if !is_truthy(&cond) {
             break;
         }
 
-        result = eval_block_statement(&ws.body, env);
+        result = eval_block_statement(&ws.body, Rc::clone(&env));
 
         // propagate return out of the loop
         if let Object::ReturnValue(_) = result {
@@ -324,10 +338,10 @@ fn eval_while_statement(ws: &WhileStatement, env: &mut Environment) -> Object {
     result
 }
 
-fn eval_for_statement(fs: &ForStatement, env: &mut Environment) -> Object {
+fn eval_for_statement(fs: &ForStatement, env: EnvRef) -> Object {
     // init
     if let Some(init_stmt) = &fs.init {
-        let init_result = eval_statement(init_stmt, env);
+        let init_result = eval_statement(init_stmt, Rc::clone(&env));
         if let Object::ReturnValue(_) = init_result {
             return init_result;
         }
@@ -338,21 +352,21 @@ fn eval_for_statement(fs: &ForStatement, env: &mut Environment) -> Object {
     loop {
         // condition
         if let Some(cond_expr) = &fs.condition {
-            let cond = eval_expression(cond_expr, env);
+            let cond = eval_expression(cond_expr, Rc::clone(&env));
             if !is_truthy(&cond) {
                 break;
             }
         }
 
         // body
-        result = eval_block_statement(&fs.body, env);
+        result = eval_block_statement(&fs.body, Rc::clone(&env));
         if let Object::ReturnValue(_) = result {
             return result;
         }
 
         // post
         if let Some(post_stmt) = &fs.post {
-            let post_result = eval_statement(post_stmt, env);
+            let post_result = eval_statement(post_stmt, Rc::clone(&env));
             if let Object::ReturnValue(_) = post_result {
                 return post_result;
             }
@@ -376,18 +390,18 @@ fn eval_string_infix(op: &str, left: &str, right: &str) -> Object {
     }
 }
 
-fn eval_array_literal(al: &ArrayLiteral, env: &mut Environment) -> Object {
+fn eval_array_literal(al: &ArrayLiteral, env: EnvRef) -> Object {
     let elements = al
         .elements
         .iter()
-        .map(|e| eval_expression(e, env))
+        .map(|e| eval_expression(e, Rc::clone(&env)))
         .collect::<Vec<_>>();
     Object::Array(elements)
 }
 
-fn eval_index_expression(ix: &IndexExpression, env: &mut Environment) -> Object {
-    let left = eval_expression(&ix.left, env);
-    let index = eval_expression(&ix.index, env);
+fn eval_index_expression(ix: &IndexExpression, env: EnvRef) -> Object {
+    let left = eval_expression(&ix.left, Rc::clone(&env));
+    let index = eval_expression(&ix.index, Rc::clone(&env));
 
     match (left, index) {
         (Object::Array(arr), Object::Integer(i)) => eval_array_index(arr, i),
@@ -430,8 +444,8 @@ mod tests {
         debug_log!("AST: {} ({} statements)", program, program.statements.len());
         debug_log!("program.statements = {:#?}", program.statements);
 
-        let mut env = Environment::new();
-        eval(&program, &mut env)
+        let env = Environment::new();
+        eval(&program, env)
     }
 
     #[test]

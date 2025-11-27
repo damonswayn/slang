@@ -1,5 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 use crate::ast::{BlockStatement, Identifier};
+use crate::evaluator::core::EnvRef;
 use crate::evaluator::Environment;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -12,7 +13,7 @@ pub enum Object {
     Function {
         params: Vec<Identifier>,
         body: BlockStatement,
-        env: Environment,
+        env: EnvRef,
     },
     Builtin(BuiltinFunction),
     ReturnValue(Box<Object>),

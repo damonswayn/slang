@@ -2,23 +2,25 @@ use std::env::args;
 use std::io::{Stdin, Write};
 use std::io;
 use std::path::Path;
+use std::rc::Rc;
 use slang::evaluator::{eval, Environment};
+use slang::evaluator::core::EnvRef;
 use slang::lexer::Lexer;
 use slang::parser::Parser;
 
 fn main() {
-    let mut env = Environment::new();
+    let env = Environment::new();
     let stdin = io::stdin();
 
     let args: Vec<String> = args().collect();
     if args.len() < 2 {
-        run_repl_mode(&mut env, stdin);
+        run_repl_mode(Rc::clone(&env), stdin);
     } else {
-        run_script_mode(&mut env, &args);
+        run_script_mode(Rc::clone(&env), &args);
     }
 }
 
-fn run_script_mode(mut env: &mut Environment, args: &Vec<String>) {
+fn run_script_mode(env: EnvRef, args: &Vec<String>) {
     let file_path_str = &args[1];
     let file_path = Path::new(file_path_str);
     if !file_path.exists() {
@@ -30,11 +32,11 @@ fn run_script_mode(mut env: &mut Environment, args: &Vec<String>) {
     let lexer = Lexer::new(&file_content);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
-    println!("{}", eval(&program, &mut env));
+    println!("{}", eval(&program, env));
     return
 }
 
-fn run_repl_mode(mut env: &mut Environment, stdin: Stdin) {
+fn run_repl_mode(env: EnvRef, stdin: Stdin) {
     loop {
         print_prompt();
         io::stdout().flush().expect("failed to flush stdout");
@@ -65,7 +67,7 @@ fn run_repl_mode(mut env: &mut Environment, stdin: Stdin) {
             continue;
         }
 
-        let result = eval(&program, &mut env);
+        let result = eval(&program, Rc::clone(&env));
         println!("{}", result);
     }
 }

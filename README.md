@@ -45,8 +45,14 @@ let z = x + y * 2;
 
 ```
 let add = function(x, y) { x + y };
-add(5, 10);
-// outputs 15
+add(5, 10); // outputs 15
+
+// same as
+function add(x, y) { 
+    x + y 
+}
+
+add(5, 10); // outputs 15
 ```
 
 ### While loops

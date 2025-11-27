@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use crate::ast::nodes::{ForStatement, PrefixExpression, ReturnStatement};
+use crate::ast::nodes::{ForStatement, FunctionStatement, PrefixExpression, ReturnStatement};
 use crate::ast::{ArrayLiteral, BlockStatement, CallExpression, Expression, FunctionLiteral, Identifier, IfExpression, IndexExpression, InfixExpression, LetStatement, Program, Statement, WhileStatement};
 use crate::{builtins, debug_log};
 use crate::object::Object;
@@ -67,6 +67,7 @@ fn eval_statement(stmt: &Statement, env: EnvRef) -> Object {
         Statement::While(ws) => eval_while_statement(ws, Rc::clone(&env)),
         Statement::For(fs) => eval_for_statement(fs, Rc::clone(&env)),
         Statement::Expression(es) => eval_expression(&es.expression, Rc::clone(&env)),
+        Statement::Function(fs) => eval_function_statement(fs, Rc::clone(&env)),
     }
 }
 
@@ -420,6 +421,21 @@ fn eval_array_index(arr: Vec<Object>, index: i64) -> Object {
     } else {
         arr[idx].clone()
     }
+}
+
+fn eval_function_statement(fs: &FunctionStatement, env: EnvRef) -> Object {
+    // Build the same Object::Function your eval_function_literal creates
+    let func_obj = Object::Function {
+        params: fs.literal.params.clone(),
+        body:   fs.literal.body.clone(),
+        env:    Rc::clone(&env), // capture defining env for closures/recursion
+    };
+
+    env.borrow_mut()
+        .set(fs.name.value.clone(), func_obj);
+
+    // Like 'let', defining a function doesn't produce a value
+    Object::Null
 }
 
 fn is_truthy(obj: &Object) -> bool {
@@ -909,5 +925,23 @@ mod tests {
             Object::Integer(i) => assert_eq!(i, 2 + 4), // [2,3] len=2; [1,2,3,4] len=4
             _ => panic!("expected integer, got {:?}", obj),
         }
+    }
+
+    #[test]
+    fn test_function_statement() {
+        let input = r#"
+        function fact(n) {
+            if (n == 0) {
+                1;
+            } else {
+                n * fact(n - 1);
+            }
+        }
+
+        fact(5);
+        "#;
+
+        let obj = eval_input(input);
+        assert_eq!(obj, Object::Integer(120));
     }
 }

@@ -27,6 +27,7 @@ pub enum Statement {
     Expression(ExpressionStatement),
     While(WhileStatement),
     For(ForStatement),
+    Function(FunctionStatement),
 }
 
 impl Display for Statement {
@@ -37,6 +38,7 @@ impl Display for Statement {
             Statement::While(ws) => write!(f, "{}", ws),
             Statement::For(fs) => write!(f, "{}", fs),
             Statement::Expression(es) => write!(f, "{}", es),
+            Statement::Function(fs) => write!(f, "{}", fs),
         }
     }
 }
@@ -310,6 +312,25 @@ impl Display for FunctionLiteral {
         }
         write!(f, ") {{")?;
         write!(f, "{}", self.body)?;
+        write!(f, "}}")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionStatement {
+    pub name: Identifier,
+    pub literal: FunctionLiteral,
+}
+
+impl Display for FunctionStatement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "fn(")?;
+        for (i, p) in self.literal.params.iter().enumerate() {
+            if i > 0 { write!(f, ", ")?; }
+            write!(f, "{}", p)?;
+        }
+        write!(f, ") {{")?;
+        write!(f, "{}", self.literal.body)?;
         write!(f, "}}")
     }
 }

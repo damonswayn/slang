@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::ast::{Program, Statement, Expression, Identifier, IntegerLiteral, InfixExpression, LetStatement, ExpressionStatement, IfExpression, BlockStatement, FunctionLiteral, CallExpression, WhileStatement, StringLiteral, ArrayLiteral, IndexExpression};
-use crate::ast::nodes::{BooleanLiteral, FloatLiteral, ForStatement, PrefixExpression, ReturnStatement};
+use crate::ast::nodes::{BooleanLiteral, FloatLiteral, ForStatement, FunctionStatement, PrefixExpression, ReturnStatement};
 use crate::debug_log;
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
@@ -114,21 +114,6 @@ impl Parser {
         self.infix_fns.insert(ttype, func);
     }
 
-    // ---------- Top-level ----------
-
-    // pub fn parse_program(&mut self) -> Program {
-    //     let mut program = Program::new();
-    //
-    //     while self.cur_token.token_type != TokenType::Eof {
-    //         if let Some(stmt) = self.parse_statement() {
-    //             program.statements.push(stmt);
-    //         }
-    //         self.next_token();
-    //     }
-    //
-    //     program
-    // }
-
     pub fn parse_program(&mut self) -> Program {
         let mut program = Program { statements: Vec::new() };
 
@@ -175,6 +160,10 @@ impl Parser {
             TokenType::For => {
                 debug_log!("  -> parsing For statement");
                 self.parse_for_statement().map(Statement::For)
+            },
+            TokenType::Function => {
+                debug_log!("  -> parsing Function statement");
+                self.parse_function_statement().map(Statement::Function)
             },
             _ => {
                 debug_log!("  -> default: parsing Expression statement");
@@ -669,6 +658,35 @@ impl Parser {
         })
     }
 
+    fn parse_function_statement(&mut self) -> Option<FunctionStatement> {
+        if !self.expect_peek(TokenType::Ident) {
+            return None;
+        }
+
+        let name = Identifier {
+            value: self.cur_token.literal.clone(),
+        };
+
+        if !self.expect_peek(TokenType::Lparen) {
+            return None;
+        }
+
+        let params = self.parse_function_parameters()?;
+
+        if !self.expect_peek(TokenType::Lbrace) {
+            return None;
+        }
+
+        let body = self.parse_block_statement()?;
+
+        Some(FunctionStatement {
+            name,
+            literal: FunctionLiteral {
+                params,
+                body,
+            },
+        })
+    }
 
     fn parse_string_literal(&mut self) -> Option<Expression> {
         Some(Expression::StringLiteral(StringLiteral {

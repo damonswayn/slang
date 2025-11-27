@@ -11,7 +11,7 @@ fn main() {
     let stdin = io::stdin();
 
     let args: Vec<String> = args().collect();
-    if args.len() < 1 {
+    if args.len() < 2 {
         run_repl_mode(&mut env, stdin);
     } else {
         run_script_mode(&mut env, &args);

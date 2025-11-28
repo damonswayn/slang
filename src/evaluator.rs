@@ -1,3 +1,3 @@
 pub mod core;
 
-pub use core::{eval, Environment};
+pub use core::eval;

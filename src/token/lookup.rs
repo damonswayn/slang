@@ -17,8 +17,7 @@ pub fn lookup_ident(ident: &str) -> TokenType {
 
 #[cfg(test)]
 mod tests {
-    use crate::token::lookup_ident;
-    use super::*;
+    use crate::token::{lookup_ident, TokenType};
 
     #[test]
     fn lookup_ident_recognizes_let() {

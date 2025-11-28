@@ -6,4 +6,4 @@ function fact(n) {
     }
 }
 
-fact(5);
+fact(20);

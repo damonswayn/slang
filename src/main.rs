@@ -3,13 +3,13 @@ use std::io::{Stdin, Write};
 use std::io;
 use std::path::Path;
 use std::rc::Rc;
-use slang::evaluator::{eval, Environment};
-use slang::evaluator::core::EnvRef;
+use slang::env::{EnvRef, new_env};
+use slang::evaluator::eval;
 use slang::lexer::Lexer;
 use slang::parser::Parser;
 
 fn main() {
-    let env = Environment::new();
+    let env = new_env();
     let stdin = io::stdin();
 
     let args: Vec<String> = args().collect();

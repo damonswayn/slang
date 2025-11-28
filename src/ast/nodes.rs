@@ -250,9 +250,49 @@ impl Display for IndexExpression {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum InfixOp {
+    Assign,
+    And,
+    Or,
+    Equals,
+    NotEquals,
+    LessThan,
+    LessEqual,
+    GreaterThan,
+    GreaterEqual,
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    Modulo,
+}
+
+impl Display for InfixOp {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            InfixOp::Assign => "=",
+            InfixOp::And => "&&",
+            InfixOp::Or => "||",
+            InfixOp::Equals => "==",
+            InfixOp::NotEquals => "!=",
+            InfixOp::LessThan => "<",
+            InfixOp::LessEqual => "<=",
+            InfixOp::GreaterThan => ">",
+            InfixOp::GreaterEqual => ">=",
+            InfixOp::Plus => "+",
+            InfixOp::Minus => "-",
+            InfixOp::Multiply => "*",
+            InfixOp::Divide => "/",
+            InfixOp::Modulo => "%",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct InfixExpression {
     pub left: Box<Expression>,
-    pub operator: String,
+    pub operator: InfixOp,
     pub right: Box<Expression>,
 }
 
@@ -286,8 +326,24 @@ impl Display for IfExpression {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum PrefixOp {
+    Not,
+    Negate,
+}
+
+impl Display for PrefixOp {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            PrefixOp::Not => "!",
+            PrefixOp::Negate => "-",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct PrefixExpression {
-    pub operator: String,
+    pub operator: PrefixOp,
     pub right: Box<Expression>,
 }
 
@@ -358,7 +414,10 @@ impl Display for CallExpression {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{
+        Expression, Identifier, InfixExpression, InfixOp, IntegerLiteral, LetStatement, Program,
+        Statement,
+    };
 
     #[test]
     fn program_display_renders_let() {
@@ -377,10 +436,10 @@ mod tests {
     fn infix_display_renders_parens() {
         let expr = Expression::Infix(InfixExpression {
             left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 1 })),
-            operator: "+".to_string(),
+            operator: InfixOp::Plus,
             right: Box::new(Expression::Infix(InfixExpression {
                 left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 2 })),
-                operator: "*".to_string(),
+                operator: InfixOp::Multiply,
                 right: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 3 })),
             })),
         });

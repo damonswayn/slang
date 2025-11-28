@@ -1,4 +1,4 @@
-use crate::token::*;
+use crate::token::{lookup_ident, Token, TokenType};
 
 pub struct Lexer {
     input: Vec<char>,
@@ -191,8 +191,8 @@ fn is_letter(ch: char) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::token::TokenType::*;
+    use super::Lexer;
+    use crate::token::TokenType::{Assign, Eof, Ident, Int, Let, Lparen, Mul, Plus, Rparen, Semicolon};
 
     #[test]
     fn test_next_token() {

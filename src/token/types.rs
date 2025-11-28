@@ -55,7 +55,7 @@ impl Token {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{Token, TokenType};
 
     #[test]
     fn test_token_new() {

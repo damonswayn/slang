@@ -1,9 +1,8 @@
 use std::fmt::{self, Display, Formatter};
 use crate::ast::{BlockStatement, Identifier};
-use crate::evaluator::core::EnvRef;
-use crate::evaluator::Environment;
+use crate::env::EnvRef;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Object {
     Integer(i64),
     Float(f64),
@@ -21,6 +20,28 @@ pub enum Object {
 }
 
 pub type BuiltinFunction = fn(Vec<Object>) -> Object;
+
+impl PartialEq for Object {
+    fn eq(&self, other: &Self) -> bool {
+        use Object::*;
+
+        match (self, other) {
+            (Integer(a), Integer(b)) => a == b,
+            (Float(a), Float(b)) => a == b,
+            (Boolean(a), Boolean(b)) => a == b,
+            (String(a), String(b)) => a == b,
+            (Array(a), Array(b)) => a == b,
+            // Functions and builtins are not compared for equality in this interpreter,
+            // so we conservatively treat them as unequal (except by identity via reference,
+            // which the current code never relies on).
+            (Function { .. }, Function { .. }) => false,
+            (Builtin(_), Builtin(_)) => false,
+            (ReturnValue(a), ReturnValue(b)) => a == b,
+            (Null, Null) => true,
+            _ => false,
+        }
+    }
+}
 
 impl Display for Object {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

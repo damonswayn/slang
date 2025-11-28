@@ -361,6 +361,93 @@ fn test_nested_array_indexing() {
 }
 
 #[test]
+fn test_object_field_assignment_simple() {
+    let input = r#"
+        let p = { x: 1 };
+        p.x = 10;
+        p.x;
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Integer(i) => assert_eq!(i, 10),
+        _ => panic!("expected integer, got {:?}", obj),
+    }
+}
+
+#[test]
+fn test_object_field_assignment_creates_new_field() {
+    let input = r#"
+        let p = { };
+        p.x = 42;
+        p.x;
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Integer(i) => assert_eq!(i, 42),
+        _ => panic!("expected integer, got {:?}", obj),
+    }
+}
+
+#[test]
+fn test_nested_object_field_assignment() {
+    let input = r#"
+        let p = { inner: { x: 1 } };
+        p.inner.x = 99;
+        p.inner.x;
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Integer(i) => assert_eq!(i, 99),
+        _ => panic!("expected integer, got {:?}", obj),
+    }
+}
+
+#[test]
+fn test_object_literal_and_property_access() {
+    let input = r#"
+        let p = { x: 1, y: 2 };
+        p.x + p.y;
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Integer(i) => assert_eq!(i, 3),
+        _ => panic!("expected integer, got {:?}", obj),
+    }
+}
+
+#[test]
+fn test_nested_object_property_access() {
+    let input = r#"
+        let p = { x: 1, inner: { y: 2 } };
+        p.inner.y;
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Integer(i) => assert_eq!(i, 2),
+        _ => panic!("expected integer, got {:?}", obj),
+    }
+}
+
+#[test]
+fn test_missing_property_returns_null() {
+    let input = r#"
+        let p = { x: 1 };
+        p.y;
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Null => {}
+        _ => panic!("expected null for missing property, got {:?}", obj),
+    }
+}
+
+#[test]
 fn test_for_loop_basic() {
     let input = r#"
         let i = 0;

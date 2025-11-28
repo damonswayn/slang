@@ -16,6 +16,8 @@ pub enum TokenType {
     Div,
     Mod,
 
+    Dot,
+
     And,
     Or,
 
@@ -32,6 +34,7 @@ pub enum TokenType {
     Lbracket, Rbracket,
     Semicolon,
     Comma,
+    Colon,
 
     Let,
     True, False,

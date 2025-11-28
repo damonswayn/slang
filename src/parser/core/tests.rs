@@ -34,6 +34,8 @@ fn test_operator_precedence_parsing() {
         ("1 + 2 * 3;", "(1 + (2 * 3))"),
         ("1 * 2 + 3;", "((1 * 2) + 3)"),
         ("(1 + 2) * 3;", "((1 + 2) * 3)"),
+        ("a.b.c;", "a.b.c"),
+        ("{ x: 1, y: 2 }.x;", "{x: 1, y: 2}.x"),
     ];
 
     for (input, expected) in tests {

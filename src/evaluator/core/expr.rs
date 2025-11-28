@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::ast::nodes::{InfixOp, PrefixExpression, PrefixOp};
+use crate::ast::nodes::{InfixOp, ObjectLiteral, PrefixExpression, PrefixOp, PropertyAccess};
 use crate::ast::{
     ArrayLiteral, CallExpression, Expression, FunctionLiteral, Identifier, IndexExpression,
     InfixExpression,
@@ -26,6 +26,8 @@ pub(super) fn eval_expression(expr: &Expression, env: EnvRef) -> Object {
         Expression::CallExpression(call) => eval_call_expression(call, env),
         Expression::ArrayLiteral(al) => eval_array_literal(al, env),
         Expression::IndexExpression(ix) => eval_index_expression(ix, env),
+        Expression::ObjectLiteral(ol) => eval_object_literal(ol, env),
+        Expression::PropertyAccess(pa) => eval_property_access(pa, env),
     }
 }
 
@@ -55,13 +57,24 @@ fn eval_infix_expression(infix: &InfixExpression, env: EnvRef) -> Object {
 
     match infix.operator {
         Assign => {
+            // Simple variable assignment: `x = expr`
             if let Expression::Identifier(Identifier { value: name }) = &*infix.left {
                 let value = eval_expression(&infix.right, Rc::clone(&env));
                 env.borrow_mut().set(name.clone(), value.clone());
                 return value;
-            } else {
-                return Object::error("invalid assignment target");
             }
+
+            // Object property assignment: `obj.field = expr` or nested `obj.a.b = expr`
+            if let Expression::PropertyAccess(pa) = &*infix.left {
+                let value = eval_expression(&infix.right, Rc::clone(&env));
+                let result = assign_to_property_access(pa, Rc::clone(&env), value.clone());
+                return match result {
+                    Ok(()) => value,
+                    Err(msg) => Object::error(msg),
+                };
+            }
+
+            return Object::error("invalid assignment target");
         }
         And => {
             let left = eval_expression(&infix.left, Rc::clone(&env));
@@ -237,6 +250,22 @@ fn eval_array_literal(al: &ArrayLiteral, env: EnvRef) -> Object {
     Object::Array(elements)
 }
 
+fn eval_object_literal(ol: &ObjectLiteral, env: EnvRef) -> Object {
+    use std::collections::HashMap;
+
+    let mut map = HashMap::new();
+
+    for (ident, expr) in &ol.properties {
+        let value = eval_expression(expr, Rc::clone(&env));
+        if value.is_error() {
+            return value;
+        }
+        map.insert(ident.value.clone(), value);
+    }
+
+    Object::Object(map)
+}
+
 fn eval_index_expression(ix: &IndexExpression, env: EnvRef) -> Object {
     let left = eval_expression(&ix.left, Rc::clone(&env));
     let index = eval_expression(&ix.index, Rc::clone(&env));
@@ -260,6 +289,125 @@ fn eval_array_index(arr: Vec<Object>, index: i64) -> Object {
         Object::Null
     } else {
         arr[idx].clone()
+    }
+}
+
+fn eval_property_access(pa: &PropertyAccess, env: EnvRef) -> Object {
+    let obj = eval_expression(&pa.object, Rc::clone(&env));
+    if obj.is_error() {
+        return obj;
+    }
+
+    match obj {
+        Object::Object(map) => map
+            .get(&pa.property.value)
+            .cloned()
+            .unwrap_or(Object::Null),
+        other => Object::error(format!(
+            "property access not supported on value: {:?}",
+            other
+        )),
+    }
+}
+
+/// Handle assignments like `obj.field = value` and nested `obj.a.b = value`.
+fn assign_to_property_access(
+    pa: &PropertyAccess,
+    env: EnvRef,
+    new_value: Object,
+) -> Result<(), String> {
+    // Collect property chain from the AST, e.g. for `obj.a.b` we get:
+    //   root_ident = "obj", props = ["a", "b"]
+    let mut props: Vec<String> = vec![pa.property.value.clone()];
+    let root_ident = match collect_property_chain(&pa.object, &mut props) {
+        Some(name) => name,
+        None => {
+            return Err("left side of assignment must be an object property (like x.y or x.y.z)"
+                .to_string())
+        }
+    };
+
+    debug_log!(
+        "assign_to_property_access: root = {}, props = {:?}",
+        root_ident,
+        props
+    );
+
+    // Get current root object value from environment
+    let current_root = {
+        let env_borrow = env.borrow();
+        match env_borrow.get(&root_ident) {
+            Some(obj) => obj,
+            None => {
+                return Err(format!(
+                    "identifier not found for property assignment: {}",
+                    root_ident
+                ))
+            }
+        }
+    };
+
+    // Recursively build an updated root object with the new value applied
+    let updated_root =
+        assign_into_object(current_root.clone(), &props, &new_value).map_err(|e| e)?;
+
+    // Store updated root back into current environment scope
+    env.borrow_mut()
+        .set(root_ident, updated_root);
+
+    Ok(())
+}
+
+/// Walks back through nested `PropertyAccess` to find the root identifier and
+/// complete property chain.
+fn collect_property_chain(expr: &Expression, props: &mut Vec<String>) -> Option<String> {
+    match expr {
+        Expression::Identifier(Identifier { value }) => {
+            // We have reached the root: reverse the collected props so they are
+            // in left-to-right order (outermost to innermost).
+            props.reverse();
+            Some(value.clone())
+        }
+        Expression::PropertyAccess(inner) => {
+            props.push(inner.property.value.clone());
+            collect_property_chain(&inner.object, props)
+        }
+        _ => None,
+    }
+}
+
+/// Given a root object and a property path, produces a new value with the
+/// property updated, preserving value semantics.
+fn assign_into_object(
+    obj: Object,
+    props: &[String],
+    new_value: &Object,
+) -> Result<Object, String> {
+    if props.is_empty() {
+        return Ok(new_value.clone());
+    }
+
+    match obj {
+        Object::Object(mut map) => {
+            let key = &props[0];
+
+            if props.len() == 1 {
+                // Final property: just insert / overwrite
+                map.insert(key.clone(), new_value.clone());
+                Ok(Object::Object(map))
+            } else {
+                // Need to drill down into nested object
+                let child = map.remove(key).unwrap_or_else(|| Object::Object(Default::default()));
+
+                let updated_child = assign_into_object(child, &props[1..], new_value)?;
+                map.insert(key.clone(), updated_child);
+                Ok(Object::Object(map))
+            }
+        }
+        other => Err(format!(
+            "cannot assign property on non-object value: {:?}",
+            other
+        )),
     }
 }
 

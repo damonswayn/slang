@@ -153,6 +153,8 @@ pub enum Expression {
     CallExpression(Box<CallExpression>),
     ArrayLiteral(ArrayLiteral),
     IndexExpression(Box<IndexExpression>),
+    ObjectLiteral(ObjectLiteral),
+    PropertyAccess(Box<PropertyAccess>),
 }
 
 impl Display for Expression {
@@ -170,6 +172,8 @@ impl Display for Expression {
             Expression::CallExpression(call) => write!(f, "{}", call),
             Expression::ArrayLiteral(al) => write!(f, "{}", al),
             Expression::IndexExpression(ie) => write!(f, "{}", ie),
+            Expression::ObjectLiteral(ol) => write!(f, "{}", ol),
+            Expression::PropertyAccess(pa) => write!(f, "{}", pa),
         }
     }
 }
@@ -246,6 +250,37 @@ pub struct IndexExpression {
 impl Display for IndexExpression {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}[{}]", self.left, self.index)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ObjectLiteral {
+    /// Properties in insertion order: `name: expr`
+    pub properties: Vec<(Identifier, Expression)>,
+}
+
+impl Display for ObjectLiteral {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{{")?;
+        for (i, (name, value)) in self.properties.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}: {}", name, value)?;
+        }
+        write!(f, "}}")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PropertyAccess {
+    pub object: Box<Expression>,
+    pub property: Identifier,
+}
+
+impl Display for PropertyAccess {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}", self.object, self.property)
     }
 }
 

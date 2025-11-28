@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 use std::fs::File;
 use std::rc::Rc;
@@ -12,6 +13,7 @@ pub enum Object {
     Boolean(bool),
     String(String),
     Array(Vec<Object>),
+    Object(HashMap<String, Object>),
     Function {
         params: Vec<Identifier>,
         body: BlockStatement,
@@ -54,7 +56,7 @@ impl Object {
 
 impl PartialEq for Object {
     fn eq(&self, other: &Self) -> bool {
-        use Object::*;
+        use self::Object::*;
 
         match (self, other) {
             (Integer(a), Integer(b)) => a == b,
@@ -62,6 +64,7 @@ impl PartialEq for Object {
             (Boolean(a), Boolean(b)) => a == b,
             (String(a), String(b)) => a == b,
             (Array(a), Array(b)) => a == b,
+            (Object(a), Object(b)) => a == b,
             // Functions and builtins are not compared for equality in this interpreter,
             // so we conservatively treat them as unequal (except by identity via reference,
             // which the current code never relies on).
@@ -89,6 +92,13 @@ impl Display for Object {
                     .join(", ");
                 write!(f, "[{}]", inner)
             },
+            Object::Object(map) => {
+                let mut parts = Vec::with_capacity(map.len());
+                for (k, v) in map {
+                    parts.push(format!("{}: {}", k, v));
+                }
+                write!(f, "{{{}}}", parts.join(", "))
+            }
             Object::Function { .. } => write!(f, "<user fn>"),
             Object::Builtin(_) => write!(f, "<native fn>"),
             Object::ReturnValue(obj) => write!(f, "{}", obj.to_string()),

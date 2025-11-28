@@ -21,8 +21,8 @@ enum Precedence {
 
 fn precedence_of(ttype: &TokenType) -> Precedence {
     use crate::token::TokenType::{
-        And, Assign, Div, Equal, GreaterEqual, GreaterThan, Lbracket, LessEqual, LessThan, Mod, Mul,
-        NotEqual, Or, Plus, Minus, Lparen,
+        And, Assign, Div, Dot, Equal, GreaterEqual, GreaterThan, Lbracket, LessEqual, LessThan, Mod,
+        Mul, NotEqual, Or, Plus, Minus, Lparen,
     };
     match ttype {
         Assign => Precedence::Assign,
@@ -34,6 +34,7 @@ fn precedence_of(ttype: &TokenType) -> Precedence {
         Mul | Div | Mod => Precedence::Product,
         Lparen => Precedence::Call,
         Lbracket => Precedence::Call,
+        Dot => Precedence::Call,
         _ => Precedence::Lowest,
     }
 }
@@ -79,6 +80,7 @@ impl Parser {
         p.register_prefix(TokenType::Function, Parser::parse_function_literal);
         p.register_prefix(TokenType::String, Parser::parse_string_literal);
         p.register_prefix(TokenType::Lbracket, Parser::parse_array_literal);
+        p.register_prefix(TokenType::Lbrace, Parser::parse_object_literal);
 
         // register infix parsers
         p.register_infix(TokenType::Equal, Parser::parse_infix_expression);
@@ -99,6 +101,7 @@ impl Parser {
 
         p.register_infix(TokenType::Lparen, Parser::parse_call_expression);
         p.register_infix(TokenType::Lbracket, Parser::parse_index_expression);
+        p.register_infix(TokenType::Dot, Parser::parse_property_access);
 
         p
     }

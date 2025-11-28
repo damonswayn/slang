@@ -2,7 +2,9 @@ use crate::ast::{
     ArrayLiteral, BlockStatement, CallExpression, Expression, FunctionLiteral, Identifier,
     IfExpression, IndexExpression, InfixExpression, InfixOp, IntegerLiteral, StringLiteral,
 };
-use crate::ast::nodes::{BooleanLiteral, FloatLiteral, PrefixExpression, PrefixOp};
+use crate::ast::nodes::{
+    BooleanLiteral, FloatLiteral, ObjectLiteral, PrefixExpression, PrefixOp, PropertyAccess,
+};
 use crate::debug_log;
 use crate::token::TokenType;
 
@@ -295,6 +297,55 @@ impl Parser {
         Some(Expression::ArrayLiteral(ArrayLiteral { elements }))
     }
 
+    pub(super) fn parse_object_literal(&mut self) -> Option<Expression> {
+        // current token is '{'
+        let mut properties = Vec::new();
+
+        // Empty object: {}
+        if self.peek_token.token_type == TokenType::Rbrace {
+            self.next_token(); // consume '}'
+            return Some(Expression::ObjectLiteral(ObjectLiteral { properties }));
+        }
+
+        loop {
+            // Move to the property name identifier
+            self.next_token();
+            if self.cur_token.token_type != TokenType::Ident {
+                self.errors.push(format!(
+                    "expected identifier as object property name, got {:?}",
+                    self.cur_token.token_type
+                ));
+                return None;
+            }
+
+            let name = Identifier {
+                value: self.cur_token.literal.clone(),
+            };
+
+            if !self.expect_peek(TokenType::Colon) {
+                return None;
+            }
+
+            // Move to start of value expression
+            self.next_token();
+            let value = self.parse_expression(Precedence::Lowest)?;
+            properties.push((name, value));
+
+            if self.peek_token.token_type != TokenType::Comma {
+                break;
+            }
+
+            // consume comma and continue
+            self.next_token();
+        }
+
+        if !self.expect_peek(TokenType::Rbrace) {
+            return None;
+        }
+
+        Some(Expression::ObjectLiteral(ObjectLiteral { properties }))
+    }
+
     pub(super) fn parse_expression_list(&mut self, end: TokenType) -> Option<Vec<Expression>> {
         debug_log!(
             "parse_expression_list: ENTER, end = {:?}, cur_token = {:?}, peek_token = {:?}",
@@ -348,6 +399,22 @@ impl Parser {
         Some(Expression::IndexExpression(Box::new(IndexExpression {
             left: Box::new(left),
             index: Box::new(index),
+        })))
+    }
+
+    pub(super) fn parse_property_access(&mut self, left: Expression) -> Option<Expression> {
+        // current token is '.'
+        if !self.expect_peek(TokenType::Ident) {
+            return None;
+        }
+
+        let property = Identifier {
+            value: self.cur_token.literal.clone(),
+        };
+
+        Some(Expression::PropertyAccess(Box::new(PropertyAccess {
+            object: Box::new(left),
+            property,
         })))
     }
 

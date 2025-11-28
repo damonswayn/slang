@@ -55,6 +55,12 @@ fn file_builtins_script_produces_expected_result() {
     assert_eq!(output, "\"Hello, world!\"\nnull");
 }
 
+#[test]
+fn test_objects_script_produces_expected_result() {
+    let output = run_script("test_objects.sl");
+    assert_eq!(output, "10\n15\n25\n30\n1\n2\n3\n4\n5\n6\nnull");
+}
+
 /// FizzBuzz integration test placeholder.
 ///
 /// The `fizzbuzz.sl` script currently does not pass, so this test is

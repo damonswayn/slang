@@ -11,7 +11,9 @@ pub enum TokenType {
 
     Assign,
     Plus,
+    PlusPlus,
     Minus,
+    MinusMinus,
     Mul,
     Div,
     Mod,

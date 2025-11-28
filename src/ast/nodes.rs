@@ -149,6 +149,7 @@ pub enum Expression {
     Infix(InfixExpression),
     If(Box<IfExpression>),
     Prefix(Box<PrefixExpression>),
+    Postfix(Box<PostfixExpression>),
     FunctionLiteral(FunctionLiteral),
     CallExpression(Box<CallExpression>),
     ArrayLiteral(ArrayLiteral),
@@ -168,6 +169,7 @@ impl Display for Expression {
             Expression::Infix(infix) => write!(f, "{}", infix),
             Expression::If(ifexpr) => write!(f, "{}", ifexpr),
             Expression::Prefix(prefix) => write!(f, "{}", prefix),
+            Expression::Postfix(postfix) => write!(f, "{}", postfix),
             Expression::FunctionLiteral(fl) => write!(f, "{}", fl),
             Expression::CallExpression(call) => write!(f, "{}", call),
             Expression::ArrayLiteral(al) => write!(f, "{}", al),
@@ -364,6 +366,8 @@ impl Display for IfExpression {
 pub enum PrefixOp {
     Not,
     Negate,
+    PreIncrement,
+    PreDecrement,
 }
 
 impl Display for PrefixOp {
@@ -371,6 +375,8 @@ impl Display for PrefixOp {
         let s = match self {
             PrefixOp::Not => "!",
             PrefixOp::Negate => "-",
+            PrefixOp::PreIncrement => "++",
+            PrefixOp::PreDecrement => "--",
         };
         write!(f, "{}", s)
     }
@@ -385,6 +391,34 @@ pub struct PrefixExpression {
 impl Display for PrefixExpression {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "({}{})", self.operator, self.right)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PostfixOp {
+    Increment,
+    Decrement,
+}
+
+impl Display for PostfixOp {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            PostfixOp::Increment => "++",
+            PostfixOp::Decrement => "--",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PostfixExpression {
+    pub left: Box<Expression>,
+    pub operator: PostfixOp,
+}
+
+impl Display for PostfixExpression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "({}{})", self.left, self.operator)
     }
 }
 

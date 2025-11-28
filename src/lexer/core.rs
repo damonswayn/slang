@@ -87,8 +87,22 @@ impl Lexer {
                 let literal = self.read_string();
                 Token::new(TokenType::String, literal)
             },
-            Some('+') => Token::new(TokenType::Plus, String::from("+")),
-            Some('-') => Token::new(TokenType::Minus, String::from("-")),
+            Some('+') => {
+                if self.peek_char() == Some('+') {
+                    self.read_char();
+                    Token::new(TokenType::PlusPlus, String::from("++"))
+                } else {
+                    Token::new(TokenType::Plus, String::from("+"))
+                }
+            }
+            Some('-') => {
+                if self.peek_char() == Some('-') {
+                    self.read_char();
+                    Token::new(TokenType::MinusMinus, String::from("--"))
+                } else {
+                    Token::new(TokenType::Minus, String::from("-"))
+                }
+            }
             Some('*') => Token::new(TokenType::Mul, String::from("*")),
             Some('/') => Token::new(TokenType::Div, String::from("/")),
             Some('%') => Token::new(TokenType::Mod, String::from("%")),

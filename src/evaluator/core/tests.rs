@@ -136,6 +136,63 @@ fn test_unary_minus_precedence() {
 }
 
 #[test]
+fn test_increment_decrement_on_variables() {
+    let cases = vec![
+        // prefix increment: ++x yields new value and updates x
+        (r#"
+            let x = 1;
+            ++x;
+        "#, Object::Integer(2)),
+        // postfix increment: x++ yields old value in expression but updates x
+        (r#"
+            let x = 1;
+            let y = x++;
+            y + x;
+        "#, Object::Integer(3)),
+        // prefix decrement
+        (r#"
+            let x = 3;
+            let y = --x;
+            y + x;
+        "#, Object::Integer(4)),
+        // postfix decrement
+        (r#"
+            let x = 3;
+            let y = x--;
+            y + x;
+        "#, Object::Integer(5)),
+    ];
+
+    for (input, expected) in cases {
+        let obj = eval_input(input);
+        assert_eq!(obj, expected, "input: {}", input);
+    }
+}
+
+#[test]
+fn test_increment_decrement_on_object_properties() {
+    let cases = vec![
+        // postfix on property
+        (r#"
+            let p = { x: 1 };
+            let y = p.x++;
+            y + p.x;
+        "#, Object::Integer(3)),
+        // prefix on property
+        (r#"
+            let p = { x: 1 };
+            let y = ++p.x;
+            y + p.x;
+        "#, Object::Integer(4)),
+    ];
+
+    for (input, expected) in cases {
+        let obj = eval_input(input);
+        assert_eq!(obj, expected, "input: {}", input);
+    }
+}
+
+#[test]
 fn test_logical_operators() {
     let tests = vec![
         ("!true;", false),

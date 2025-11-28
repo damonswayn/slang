@@ -4,6 +4,7 @@ use crate::ast::{
 };
 use crate::ast::nodes::{
     BooleanLiteral, FloatLiteral, ObjectLiteral, PrefixExpression, PrefixOp, PropertyAccess,
+    PostfixExpression, PostfixOp,
 };
 use crate::debug_log;
 use crate::token::TokenType;
@@ -173,6 +174,8 @@ impl Parser {
         let operator = match self.cur_token.token_type {
             TokenType::Bang => PrefixOp::Not,
             TokenType::Minus => PrefixOp::Negate,
+            TokenType::PlusPlus => PrefixOp::PreIncrement,
+            TokenType::MinusMinus => PrefixOp::PreDecrement,
             _ => return None,
         };
 
@@ -183,6 +186,19 @@ impl Parser {
         Some(Expression::Prefix(Box::new(PrefixExpression {
             operator,
             right: Box::new(right),
+        })))
+    }
+
+    pub(super) fn parse_postfix_expression(&mut self, left: Expression) -> Option<Expression> {
+        let operator = match self.cur_token.token_type {
+            TokenType::PlusPlus => PostfixOp::Increment,
+            TokenType::MinusMinus => PostfixOp::Decrement,
+            _ => return None,
+        };
+
+        Some(Expression::Postfix(Box::new(PostfixExpression {
+            left: Box::new(left),
+            operator,
         })))
     }
 

@@ -1,6 +1,9 @@
 use std::rc::Rc;
 
-use crate::ast::nodes::{InfixOp, ObjectLiteral, PrefixExpression, PrefixOp, PropertyAccess};
+use crate::ast::nodes::{
+    InfixOp, ObjectLiteral, PrefixExpression, PrefixOp, PropertyAccess, PostfixExpression,
+    PostfixOp,
+};
 use crate::ast::{
     ArrayLiteral, CallExpression, Expression, FunctionLiteral, Identifier, IndexExpression,
     InfixExpression,
@@ -22,6 +25,7 @@ pub(super) fn eval_expression(expr: &Expression, env: EnvRef) -> Object {
         Expression::Infix(infix) => eval_infix_expression(infix, env),
         Expression::If(ifexpr) => eval_if_expression(ifexpr, env),
         Expression::Prefix(p) => eval_prefix_expression(p, env),
+        Expression::Postfix(p) => eval_postfix_expression(p, env),
         Expression::FunctionLiteral(fl) => eval_function_literal(fl, env),
         Expression::CallExpression(call) => eval_call_expression(call, env),
         Expression::ArrayLiteral(al) => eval_array_literal(al, env),
@@ -164,11 +168,26 @@ fn eval_boolean_infix(op: &InfixOp, left: bool, right: bool) -> Object {
 }
 
 fn eval_prefix_expression(pe: &PrefixExpression, env: EnvRef) -> Object {
-    let right = eval_expression(&pe.right, Rc::clone(&env));
+    use PrefixOp::*;
 
     match pe.operator {
-        PrefixOp::Not => eval_bang_operator(right),
-        PrefixOp::Negate => eval_minus_prefix(right),
+        Not => {
+            let right = eval_expression(&pe.right, Rc::clone(&env));
+            eval_bang_operator(right)
+        }
+        Negate => {
+            let right = eval_expression(&pe.right, Rc::clone(&env));
+            eval_minus_prefix(right)
+        }
+        PreIncrement => eval_inc_dec_expression(&pe.right, Rc::clone(&env), true, true),
+        PreDecrement => eval_inc_dec_expression(&pe.right, Rc::clone(&env), false, true),
+    }
+}
+
+fn eval_postfix_expression(pe: &PostfixExpression, env: EnvRef) -> Object {
+    match pe.operator {
+        PostfixOp::Increment => eval_inc_dec_expression(&pe.left, env, true, false),
+        PostfixOp::Decrement => eval_inc_dec_expression(&pe.left, env, false, false),
     }
 }
 
@@ -185,6 +204,89 @@ fn eval_minus_prefix(obj: Object) -> Object {
         Object::Integer(i) => Object::Integer(-i),
         Object::Float(f) => Object::Float(-f),
         _ => Object::Null,
+    }
+}
+
+fn eval_inc_dec_expression(
+    target: &Expression,
+    env: EnvRef,
+    is_increment: bool,
+    is_prefix: bool,
+) -> Object {
+    match target {
+        Expression::Identifier(ident) => apply_inc_dec_to_identifier(ident, env, is_increment, is_prefix),
+        Expression::PropertyAccess(pa) => apply_inc_dec_to_property(pa, env, is_increment, is_prefix),
+        _ => Object::error("invalid increment/decrement target"),
+    }
+}
+
+fn apply_inc_dec_to_identifier(
+    ident: &Identifier,
+    env: EnvRef,
+    is_increment: bool,
+    is_prefix: bool,
+) -> Object {
+    let current = eval_identifier(ident, Rc::clone(&env));
+    if current.is_error() {
+        return current;
+    }
+
+    let new_value = match apply_inc_dec_to_numeric(&current, is_increment) {
+        Ok(v) => v,
+        Err(msg) => return Object::error(msg),
+    };
+
+    env.borrow_mut().set(ident.value.clone(), new_value.clone());
+
+    if is_prefix {
+        new_value
+    } else {
+        current
+    }
+}
+
+fn apply_inc_dec_to_property(
+    pa: &PropertyAccess,
+    env: EnvRef,
+    is_increment: bool,
+    is_prefix: bool,
+) -> Object {
+    let current = eval_property_access(pa, Rc::clone(&env));
+    if current.is_error() {
+        return current;
+    }
+
+    let new_value = match apply_inc_dec_to_numeric(&current, is_increment) {
+        Ok(v) => v,
+        Err(msg) => return Object::error(msg),
+    };
+
+    let result = assign_to_property_access(pa, Rc::clone(&env), new_value.clone());
+    if let Err(msg) = result {
+        return Object::error(msg);
+    }
+
+    if is_prefix {
+        new_value
+    } else {
+        current
+    }
+}
+
+fn apply_inc_dec_to_numeric(value: &Object, is_increment: bool) -> Result<Object, String> {
+    match value {
+        Object::Integer(i) => {
+            let delta = if is_increment { 1 } else { -1 };
+            Ok(Object::Integer(i + delta))
+        }
+        Object::Float(f) => {
+            let delta = if is_increment { 1.0 } else { -1.0 };
+            Ok(Object::Float(f + delta))
+        }
+        other => Err(format!(
+            "increment/decrement only supported on numeric values, got {:?}",
+            other
+        )),
     }
 }
 

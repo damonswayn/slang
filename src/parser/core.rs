@@ -15,14 +15,14 @@ enum Precedence {
     LessGreater, // < > <= >=
     Sum,     // + -
     Product, // * / %
-    Prefix, // !x, -x
-    Call, // myFunction(x)
+    Prefix, // !x, -x, ++x, --x
+    Call, // myFunction(x), x(), x.y, x[0], x++, x--
 }
 
 fn precedence_of(ttype: &TokenType) -> Precedence {
     use crate::token::TokenType::{
         And, Assign, Div, Dot, Equal, GreaterEqual, GreaterThan, Lbracket, LessEqual, LessThan, Mod,
-        Mul, NotEqual, Or, Plus, Minus, Lparen,
+        Mul, NotEqual, Or, Plus, Minus, PlusPlus, MinusMinus, Lparen,
     };
     match ttype {
         Assign => Precedence::Assign,
@@ -32,6 +32,7 @@ fn precedence_of(ttype: &TokenType) -> Precedence {
         LessThan | GreaterThan | LessEqual | GreaterEqual => Precedence::LessGreater,
         Plus | Minus => Precedence::Sum,
         Mul | Div | Mod => Precedence::Product,
+        PlusPlus | MinusMinus => Precedence::Call,
         Lparen => Precedence::Call,
         Lbracket => Precedence::Call,
         Dot => Precedence::Call,
@@ -77,6 +78,8 @@ impl Parser {
         p.register_prefix(TokenType::If, Parser::parse_if_expression);
         p.register_prefix(TokenType::Bang, Parser::parse_prefix_expression);
         p.register_prefix(TokenType::Minus, Parser::parse_prefix_expression);
+        p.register_prefix(TokenType::PlusPlus, Parser::parse_prefix_expression);
+        p.register_prefix(TokenType::MinusMinus, Parser::parse_prefix_expression);
         p.register_prefix(TokenType::Function, Parser::parse_function_literal);
         p.register_prefix(TokenType::String, Parser::parse_string_literal);
         p.register_prefix(TokenType::Lbracket, Parser::parse_array_literal);
@@ -102,6 +105,8 @@ impl Parser {
         p.register_infix(TokenType::Lparen, Parser::parse_call_expression);
         p.register_infix(TokenType::Lbracket, Parser::parse_index_expression);
         p.register_infix(TokenType::Dot, Parser::parse_property_access);
+        p.register_infix(TokenType::PlusPlus, Parser::parse_postfix_expression);
+        p.register_infix(TokenType::MinusMinus, Parser::parse_postfix_expression);
 
         p
     }

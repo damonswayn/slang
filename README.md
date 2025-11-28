@@ -3,7 +3,36 @@
 Slang (Simple LANGuage) is a simple interpreted language
 built in Rust as a means of experimenting with Rust.
 
+Slang is a C-like language with a syntax that should be very
+familiar to JavaScript programmers.
+
+Slang is not meant to be used for serious programming, it is
+a toy language built as a means to learn Rust.
+
+## Running Slang
+
+You can run Slang either in REPL mode or by executing a script file.
+
+```
+# runs REPL mode
+$ ./slang
+
+# runs script file
+$ ./slang script.sl
+```
+
+## Debug mode
+
+Slang supports debug mode, this basically just vomits the internal
+processing out to your console as the program runs.
+
+This can be enabled by using the `debug(true);` function, or can
+be switched off via `debug(false);`.
+
 ## Features
+
+The following is a non-exhaustive list of features that Slang
+supports.
 
 ### Defining variables
 

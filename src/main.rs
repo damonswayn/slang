@@ -51,7 +51,8 @@ fn run_repl_mode(env: EnvRef, stdin: Stdin) {
             continue;
         }
 
-        if input.trim() == "exit;" || input.trim() == "quit;" {
+        if input.trim() == "exit;" || input.trim() == "exit"
+            || input.trim() == "quit;" || input.trim() == "quit" {
             break;
         }
 

@@ -39,19 +39,19 @@ pub fn get(name: &str) -> Option<BuiltinFunction> {
 
 fn builtin_len(args: Vec<Object>) -> Object {
     if args.len() != 1 {
-        return Object::Null;
+        return Object::error("len expects exactly 1 argument");
     }
 
     match &args[0] {
         Object::String(s) => Integer(s.len() as i64),
         Object::Array(a) => Integer(a.len() as i64),
-        _ => Object::Null,
+        other => Object::error(format!("len not supported for value: {:?}", other)),
     }
 }
 
 fn builtin_first(args: Vec<Object>) -> Object {
     if args.len() != 1 {
-        return Object::Null;
+        return Object::error("first expects exactly 1 argument");
     }
 
     match &args[0] {
@@ -62,13 +62,13 @@ fn builtin_first(args: Vec<Object>) -> Object {
                 elems[0].clone()
             }
         }
-        _ => Object::Null,
+        other => Object::error(format!("first expects array, got {:?}", other)),
     }
 }
 
 fn builtin_last(args: Vec<Object>) -> Object {
     if args.len() != 1 {
-        return Object::Null;
+        return Object::error("last expects exactly 1 argument");
     }
 
     match &args[0] {
@@ -79,13 +79,13 @@ fn builtin_last(args: Vec<Object>) -> Object {
                 Object::Null
             }
         }
-        _ => Object::Null,
+        other => Object::error(format!("last expects array, got {:?}", other)),
     }
 }
 
 fn builtin_rest(args: Vec<Object>) -> Object {
     if args.len() != 1 {
-        return Object::Null;
+        return Object::error("rest expects exactly 1 argument");
     }
 
     match &args[0] {
@@ -96,13 +96,13 @@ fn builtin_rest(args: Vec<Object>) -> Object {
                 Object::Array(elems[1..].to_vec())
             }
         }
-        _ => Object::Null,
+        other => Object::error(format!("rest expects array, got {:?}", other)),
     }
 }
 
 fn builtin_push(mut args: Vec<Object>) -> Object {
     if args.len() != 2 {
-        return Object::Null;
+        return Object::error("push expects exactly 2 arguments");
     }
 
     let value = args.pop().unwrap();
@@ -113,7 +113,7 @@ fn builtin_push(mut args: Vec<Object>) -> Object {
             elems.push(value);
             Object::Array(elems)
         }
-        _ => Object::Null,
+        other => Object::error(format!("push expects array as first argument, got {:?}", other)),
     }
 }
 
@@ -130,7 +130,7 @@ fn builtin_print(args: Vec<Object>) -> Object {
 
 fn builtin_debug(args: Vec<Object>) -> Object {
     if args.len() != 1 {
-        return Object::Null
+        return Object::error("debug expects exactly 1 argument");
     }
 
     match &args[0] {
@@ -142,6 +142,6 @@ fn builtin_debug(args: Vec<Object>) -> Object {
             crate::debug::disable_debug_mode();
             Object::Boolean(false)
         },
-        _ => Object::Null
+        other => Object::error(format!("debug expects boolean, got {:?}", other)),
     }
 }

@@ -43,8 +43,8 @@ fn eval_identifier(ident: &Identifier, env: EnvRef) -> Object {
         return Object::Builtin(builtin_fn);
     }
 
-    debug_log!("  not found (returning Null)");
-    Object::Null
+    debug_log!("  not found (returning Error)");
+    Object::error(format!("identifier not found: {}", ident.value))
 }
 
 fn eval_infix_expression(infix: &InfixExpression, env: EnvRef) -> Object {
@@ -60,7 +60,7 @@ fn eval_infix_expression(infix: &InfixExpression, env: EnvRef) -> Object {
                 env.borrow_mut().set(name.clone(), value.clone());
                 return value;
             } else {
-                return Object::Null;
+                return Object::error("invalid assignment target");
             }
         }
         And => {
@@ -96,7 +96,10 @@ fn eval_infix_expression(infix: &InfixExpression, env: EnvRef) -> Object {
 
         (Object::Boolean(l), Object::Boolean(r)) => eval_boolean_infix(&infix.operator, l, r),
         (Object::String(l), Object::String(r)) => eval_string_infix(&infix.operator, &l, &r),
-        _ => Object::Null, // later: type errors, etc.
+        (l, r) => Object::error(format!(
+            "type mismatch: {:?} {} {:?}",
+            l, infix.operator, r
+        )),
     }
 }
 
@@ -115,7 +118,7 @@ fn eval_integer_infix(op: &InfixOp, left: i64, right: i64) -> Object {
         GreaterEqual => Object::Boolean(left >= right),
         Equals => Object::Boolean(left == right),
         NotEquals => Object::Boolean(left != right),
-        _ => Object::Null,
+        _ => Object::error(format!("unknown operator: {} (integers)", op)),
     }
 }
 
@@ -134,8 +137,7 @@ fn eval_float_infix(op: &InfixOp, left: f64, right: f64) -> Object {
         GreaterEqual => Object::Boolean(left >= right),
         Equals => Object::Boolean(left == right),
         NotEquals => Object::Boolean(left != right),
-
-        _ => Object::Null,
+        _ => Object::error(format!("unknown operator: {} (floats)", op)),
     }
 }
 
@@ -144,7 +146,7 @@ fn eval_boolean_infix(op: &InfixOp, left: bool, right: bool) -> Object {
     match op {
         Equals => Object::Boolean(left == right),
         NotEquals => Object::Boolean(left != right),
-        _ => Object::Null,
+        _ => Object::error(format!("unknown operator: {} (booleans)", op)),
     }
 }
 
@@ -169,7 +171,7 @@ fn eval_minus_prefix(obj: Object) -> Object {
     match obj {
         Object::Integer(i) => Object::Integer(-i),
         Object::Float(f) => Object::Float(-f),
-        _ => Object::Null, // or some error type later
+        _ => Object::Null,
     }
 }
 
@@ -207,7 +209,7 @@ fn apply_function(func: Object, args: Vec<Object>) -> Object {
             super::stmt::eval_block_statement(&body, extended)
         }
         Object::Builtin(f) => f(args),
-        _ => Object::Null, // later: return a proper error object
+        other => Object::error(format!("not a function: {:?}", other)),
     }
 }
 
@@ -222,7 +224,7 @@ fn eval_string_infix(op: &InfixOp, left: &str, right: &str) -> Object {
         }
         Equals => Object::Boolean(left == right),
         NotEquals => Object::Boolean(left != right),
-        _ => Object::Null,
+        _ => Object::error(format!("unknown operator: {} (strings)", op)),
     }
 }
 
@@ -241,7 +243,10 @@ fn eval_index_expression(ix: &IndexExpression, env: EnvRef) -> Object {
 
     match (left, index) {
         (Object::Array(arr), Object::Integer(i)) => eval_array_index(arr, i),
-        _ => Object::Null,
+        (Object::Array(_), other) => {
+            Object::error(format!("array index must be integer, got {:?}", other))
+        }
+        (other, _) => Object::error(format!("index operator not supported: {:?}", other)),
     }
 }
 

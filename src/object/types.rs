@@ -1,4 +1,7 @@
+use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
+use std::fs::File;
+use std::rc::Rc;
 use crate::ast::{BlockStatement, Identifier};
 use crate::env::EnvRef;
 
@@ -16,10 +19,38 @@ pub enum Object {
     },
     Builtin(BuiltinFunction),
     ReturnValue(Box<Object>),
+    File(FileRef),
+    Error(String),
     Null,
 }
 
 pub type BuiltinFunction = fn(Vec<Object>) -> Object;
+
+pub type FileRef = Rc<RefCell<FileHandle>>;
+#[derive(Debug)]
+pub struct FileHandle {
+    pub inner: Option<File>,
+}
+
+impl FileHandle {
+    pub fn new(f: File) -> Self {
+        Self { inner: Some(f) }
+    }
+
+    pub fn is_closed(&self) -> bool {
+        self.inner.is_none()
+    }
+}
+
+impl Object {
+    pub fn error<S: Into<String>>(msg: S) -> Self {
+        Object::Error(msg.into())
+    }
+
+    pub fn is_error(&self) -> bool {
+        matches!(self, Object::Error(_))
+    }
+}
 
 impl PartialEq for Object {
     fn eq(&self, other: &Self) -> bool {
@@ -61,6 +92,8 @@ impl Display for Object {
             Object::Function { .. } => write!(f, "<user fn>"),
             Object::Builtin(_) => write!(f, "<native fn>"),
             Object::ReturnValue(obj) => write!(f, "{}", obj.to_string()),
+            Object::File(_) => write!(f, "<file>"),
+            Object::Error(msg) => write!(f, "{}", msg),
             Object::Null => write!(f, "null"),
         }
     }

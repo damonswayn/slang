@@ -49,6 +49,12 @@ fn test_a_script_produces_expected_result() {
     assert_eq!(output, "6");
 }
 
+#[test]
+fn file_builtins_script_produces_expected_result() {
+    let output = run_script("test_file_builtins.sl");
+    assert_eq!(output, "\"Hello, world!\"\nnull");
+}
+
 /// FizzBuzz integration test placeholder.
 ///
 /// The `fizzbuzz.sl` script currently does not pass, so this test is

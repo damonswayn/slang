@@ -2,6 +2,8 @@ use crate::object::Object;
 use crate::object::Object::Integer;
 use crate::object::types::BuiltinFunction;
 
+mod file_builtins;
+
 pub struct Builtin {
     pub name: &'static str,
     pub func: BuiltinFunction,
@@ -15,6 +17,13 @@ const BUILTINS: &[Builtin] = &[
     Builtin { name: "push",  func: builtin_push },
     Builtin { name: "print", func: builtin_print },
     Builtin { name: "debug", func: builtin_debug },
+
+    // File builtins
+    Builtin { name: "file_open", func: file_builtins::builtin_open },
+    Builtin { name: "file_read", func: file_builtins::builtin_read },
+    Builtin { name: "file_write", func: file_builtins::builtin_write },
+    Builtin { name: "file_seek", func: file_builtins::builtin_seek },
+    Builtin { name: "file_close", func: file_builtins::builtin_close },
 ];
 
 pub fn get(name: &str) -> Option<BuiltinFunction> {

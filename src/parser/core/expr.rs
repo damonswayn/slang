@@ -1,6 +1,7 @@
 use crate::ast::{
-    ArrayLiteral, BlockStatement, CallExpression, Expression, FunctionLiteral, Identifier,
-    IfExpression, IndexExpression, InfixExpression, InfixOp, IntegerLiteral, StringLiteral,
+    ArrayLiteral, BlockStatement, CallExpression, Expression, ExpressionStatement,
+    FunctionLiteral, Identifier, IfExpression, IndexExpression, InfixExpression, InfixOp,
+    IntegerLiteral, Statement, StringLiteral,
 };
 use crate::ast::nodes::{
     BooleanLiteral, FloatLiteral, ObjectLiteral, PrefixExpression, PrefixOp, PropertyAccess,
@@ -226,11 +227,34 @@ impl Parser {
         let consequence = self.parse_block_statement()?;
 
         let alternative = if self.peek_token.token_type == TokenType::Else {
+            // Consume 'else'
             self.next_token(); // current = 'else'
-            if !self.expect_peek(TokenType::Lbrace) {
-                return None;
+
+            // Support `else if` by desugaring to `else { if (...) { ... } ... }`
+            if self.peek_token.token_type == TokenType::If {
+                // Move to 'if'
+                self.next_token(); // current = 'if'
+
+                // Parse the nested if-expression starting at this 'if'
+                let nested_if_expr = self.parse_if_expression()?;
+
+                // Wrap the nested if-expression in a block so it fits the
+                // existing AST shape: `alternative: Option<BlockStatement>`.
+                let stmt = Statement::Expression(ExpressionStatement {
+                    expression: nested_if_expr,
+                });
+                let block = BlockStatement {
+                    statements: vec![stmt],
+                };
+
+                Some(block)
+            } else {
+                // Regular `else { ... }`
+                if !self.expect_peek(TokenType::Lbrace) {
+                    return None;
+                }
+                Some(self.parse_block_statement()?)
             }
-            Some(self.parse_block_statement()?)
         } else {
             None
         };

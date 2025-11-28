@@ -406,6 +406,24 @@ fn test_nested_object_field_assignment() {
 }
 
 #[test]
+fn test_method_call_with_this() {
+    let input = r#"
+        let p = {
+            x: 5,
+            add_to_x: fn(a) { this.x + a; },
+        };
+
+        p.add_to_x(10);
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Integer(i) => assert_eq!(i, 15),
+        _ => panic!("expected integer, got {:?}", obj),
+    }
+}
+
+#[test]
 fn test_object_literal_and_property_access() {
     let input = r#"
         let p = { x: 1, y: 2 };

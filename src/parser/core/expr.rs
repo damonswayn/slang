@@ -331,12 +331,18 @@ impl Parser {
             let value = self.parse_expression(Precedence::Lowest)?;
             properties.push((name, value));
 
-            if self.peek_token.token_type != TokenType::Comma {
+            // Handle optional commas between properties, and allow a trailing comma.
+            if self.peek_token.token_type == TokenType::Comma {
+                // consume comma
+                self.next_token();
+
+                // Trailing comma: `{ a: 1, }`
+                if self.peek_token.token_type == TokenType::Rbrace {
+                    break;
+                }
+            } else {
                 break;
             }
-
-            // consume comma and continue
-            self.next_token();
         }
 
         if !self.expect_peek(TokenType::Rbrace) {

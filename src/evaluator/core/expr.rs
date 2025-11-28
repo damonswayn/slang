@@ -197,23 +197,54 @@ fn eval_function_literal(fl: &FunctionLiteral, env: EnvRef) -> Object {
 }
 
 fn eval_call_expression(call: &CallExpression, env: EnvRef) -> Object {
-    let function = eval_expression(&call.function, Rc::clone(&env));
+    // Evaluate arguments first (left-to-right)
     let args: Vec<Object> = call
         .arguments
         .iter()
         .map(|arg| eval_expression(arg, Rc::clone(&env)))
         .collect();
 
-    apply_function(function, args)
+    // Special-case method calls: `obj.method(...)`
+    if let Expression::PropertyAccess(pa) = &*call.function {
+        let receiver = eval_expression(&pa.object, Rc::clone(&env));
+        if receiver.is_error() {
+            return receiver;
+        }
+
+        let method = match &receiver {
+            Object::Object(map) => map
+                .get(&pa.property.value)
+                .cloned()
+                .unwrap_or(Object::Null),
+            other => {
+                return Object::error(format!(
+                    "property call not supported on value: {:?}",
+                    other
+                ))
+            }
+        };
+
+        return apply_function_with_this(method, args, Some(receiver));
+    }
+
+    // Regular function call
+    let function = eval_expression(&call.function, Rc::clone(&env));
+    apply_function_with_this(function, args, None)
 }
 
-fn apply_function(func: Object, args: Vec<Object>) -> Object {
+fn apply_function_with_this(func: Object, args: Vec<Object>, this: Option<Object>) -> Object {
     match func {
         Object::Function { params, body, env } => {
             let extended = new_enclosed_env(env);
 
             {
                 let mut inner = extended.borrow_mut();
+
+                // Bind implicit `this` for method calls, if provided.
+                if let Some(this_val) = this {
+                    inner.set("this".to_string(), this_val);
+                }
+
                 for (param, arg) in params.iter().zip(args.into_iter()) {
                     inner.set(param.value.clone(), arg);
                 }

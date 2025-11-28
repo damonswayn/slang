@@ -1,3 +1,5 @@
+// testing builtin functions around arrays
+
 let a = [1, 2, 3];
 let b = first(a);
 let c = last(a);

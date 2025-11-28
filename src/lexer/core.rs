@@ -35,6 +35,16 @@ impl Lexer {
         self.skip_whitespace();
 
         let tok = match self.ch {
+            Some('/') => {
+                if self.peek_char() == Some('/') {
+                    // line comment: consume until end of line, then return the next real token
+                    self.read_char(); // consume second '/'
+                    self.skip_comment();
+                    return self.next_token();
+                } else {
+                    Token::new(TokenType::Div, String::from("/"))
+                }
+            }
             Some('=') => {
                 if self.peek_char() == Some('=') {
                     self.read_char();
@@ -104,7 +114,6 @@ impl Lexer {
                 }
             }
             Some('*') => Token::new(TokenType::Mul, String::from("*")),
-            Some('/') => Token::new(TokenType::Div, String::from("/")),
             Some('%') => Token::new(TokenType::Mod, String::from("%")),
             Some('.') => Token::new(TokenType::Dot, String::from(".")),
             Some('(') => Token::new(TokenType::Lparen, String::from("(")),
@@ -138,6 +147,16 @@ impl Lexer {
 
     pub fn skip_whitespace(&mut self) {
         while matches!(self.ch, Some(' ') | Some('\t') | Some('\n') | Some('\r')) {
+            self.read_char();
+        }
+    }
+
+    fn skip_comment(&mut self) {
+        // currently self.ch is the second '/' in a '//' sequence
+        while let Some(ch) = self.ch {
+            if ch == '\n' || ch == '\r' {
+                break;
+            }
             self.read_char();
         }
     }
@@ -214,8 +233,9 @@ mod tests {
     fn test_next_token() {
         let input = r#"
         let x = 5;
+        // this is a comment
         let y = x + 10;
-        (x + y) * 2;
+        (x + y) * 2; // another comment
         "#;
 
         let tests = vec![

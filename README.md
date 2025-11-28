@@ -86,4 +86,51 @@ let a = [1, 2, 3, 4, 5];
 for (let i = 0; i < len(a); i = i + 1) {
 	print(a[i]);
 }
+
+// outputs 1, 2, 3, 4, 5
+
+for (let i = 0; i < len(a); i++) {
+	print(a[i]);
+}
+
+// also outputs 1, 2, 3, 4, 5
+```
+
+### file operations
+
+```
+let f = file_open("test.txt", "w+");
+file_write(f, "Hello, world!");
+file_seek(f, 0, "start");
+print(file_read(f));
+file_close(f);
+```
+
+### objects
+
+```
+let obj = {
+    x: 5,
+    y: 10,
+    add: fn() {
+        return this.x + this.y;
+    },
+    inner: {
+        z: [1, 2, 3],
+        sum: function () {
+            let sum = 0;
+            for (let i = 0; i < len(this.z); i++) {
+                sum = sum + this.z[i];
+            }
+            
+            return sum;
+        }
+    }
+};
+
+print(obj.add());
+// outputs 15
+
+print(obj.inner.sum());
+// outputs 6
 ```

@@ -58,7 +58,7 @@ fn file_builtins_script_produces_expected_result() {
 #[test]
 fn test_objects_script_produces_expected_result() {
     let output = run_script("test_objects.sl");
-    assert_eq!(output, "10\n15\n25\n30\n1\n2\n3\n4\n5\n6\nnull");
+    assert_eq!(output, "10\n15\n25\n30\n1\n2\n3\n4\n5\n6\n6\nnull");
 }
 
 /// FizzBuzz integration test placeholder.

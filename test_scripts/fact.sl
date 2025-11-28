@@ -1,3 +1,5 @@
+// tests recursive functions
+
 function fact(n) {
     if (n == 0) {
         1;

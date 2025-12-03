@@ -8,3 +8,4 @@ default = ["debug-logging"]
 debug-logging = []
 
 [dependencies]
+regex = "1.11"

@@ -163,3 +163,85 @@ print(obj.add());
 print(obj.inner.sum());
 // outputs 6
 ```
+
+### Higher order functions
+
+```
+let makeAdder = fn(x) {
+    function(y) { x + y; }; // this inner fn closes over x
+};
+
+let addTwo = makeAdder(2);
+print(addTwo(3)); // => 5
+
+let addTen = makeAdder(10);
+print(addTen(7)); // => 17
+```
+
+### Monads
+
+```
+function isNumberGreaterThanZero(num) {
+    if (num > 0) {
+        Result::Ok(num);
+    } else {
+        Result::Err("Number less than zero");
+    }
+}
+
+let resultOne = isNumberGreaterThanZero(5);
+Result::andThen(resultOne, fn (num) {
+    print(num);
+});
+
+let resultTwo = isNumberGreaterThanZero(-12);
+Result::andThen(resultTwo, fn (num) {
+    print("This shouldn't happen");
+});
+
+if (Result::isErr(resultTwo)) {
+    print("failure");
+}
+
+function findValueInList(val) {
+    let list = [1,2,3,4,5];
+    for (let i = 0; i < len(list); i++) {
+        if (list[i] == val) {
+            return Option::Some(i);
+        }
+    }
+
+    Option::None();
+}
+
+let optA = findValueInList(3);
+Option::andThen(optA, fn (idx) {
+    print("Found value in list at index");
+    print(idx);
+    Option::Some(idx);
+});
+
+let optB = findValueInList(-2);
+Option::andThen(optB, fn (val) {
+    print("Should not happen");
+});
+
+if (Option::isNone(optB)) {
+    print("Value not in list");
+}
+```
+
+### Regex
+
+```
+let t1 = regexIsMatch("hello123", "[a-z]+[0-9]+"); // true
+let t2 = regexIsMatch("hello", "[0-9]+"); // false
+
+let m1 = regexFind("abc123xyz", "\d+"); // Some("123")
+let m2 = regexFind("no-digits-here", "\d+"); // None()
+
+let r = regexReplace("foo 123 bar 456", "\d+", "X"); // foo X bar X
+
+let c1 = regexMatch("abc123", "([a-z]+)(\d+)"); // Some(["abc123", "abc", "123"])
+let c2 = regexMatch("no-digits", "(\d+)"); // None()
+```

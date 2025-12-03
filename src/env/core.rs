@@ -22,6 +22,10 @@ use crate::builtins::native::{
     result_and_then,
     result_bind,
     result_fmap,
+    builtin_regex_is_match,
+    builtin_regex_find,
+    builtin_regex_replace,
+    builtin_regex_match,
 };
 
 /// Reference-counted, interior-mutable environment handle
@@ -70,7 +74,7 @@ pub fn new_env() -> EnvRef {
     let env = Environment::new();
 
     {
-        // Pre-bind monad "namespaces" Option and Result.
+        // Pre-bind namespaces Option, Result and Regex.
         let mut inner = env.borrow_mut();
 
         // Option = { Some, None, isSome, isNone, unwrapOr, map, andThen, bind, fmap }
@@ -98,6 +102,14 @@ pub fn new_env() -> EnvRef {
         result_methods.insert("bind".to_string(), Object::Builtin(result_bind));
         result_methods.insert("fmap".to_string(), Object::Builtin(result_fmap));
         inner.set("Result".to_string(), Object::Object(result_methods));
+
+        // Regex = { isMatch, find, replace, match }
+        let mut regex_methods = HashMap::new();
+        regex_methods.insert("isMatch".to_string(), Object::Builtin(builtin_regex_is_match));
+        regex_methods.insert("find".to_string(), Object::Builtin(builtin_regex_find));
+        regex_methods.insert("replace".to_string(), Object::Builtin(builtin_regex_replace));
+        regex_methods.insert("match".to_string(), Object::Builtin(builtin_regex_match));
+        inner.set("Regex".to_string(), Object::Object(regex_methods));
     }
 
     env

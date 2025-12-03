@@ -899,6 +899,97 @@ fn test_result_map_and_then() {
 }
 
 #[test]
+fn test_file_namespace_result_helpers() {
+    let input = r#"
+        // Create a fresh file and write to it using the File:: API
+        let opened = File::open("tmp_file_namespace_ok.txt", "w+");
+        let f = Result::unwrapOr(opened, 0);
+
+        let _ = File::write(f, "Hello, world!");
+        let _ = File::seek(f, 0, "start");
+
+        let contentsResult = File::read(f);
+
+        let contents = Result::unwrapOr(contentsResult, "ERR");
+        contents;
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::String(s) => assert_eq!(s, "Hello, world!"),
+        other => panic!("expected file contents string, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_file_namespace_open_errors() {
+    let input = r#"
+        let res1 = File::open("this_file_does_not_exist_xyz.txt", "r");
+        let res2 = File::open("tmp_file_namespace_open_mode.txt", "badmode");
+
+        let a = Result::isOk(res1);
+        let b = Result::isErr(res1);
+        let c = Result::isOk(res2);
+        let d = Result::isErr(res2);
+
+        [a, b, c, d];
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Array(vals) => {
+            assert_eq!(vals.len(), 4);
+            assert_eq!(vals[0], Object::Boolean(false)); // res1 is not Ok
+            assert_eq!(vals[1], Object::Boolean(true));  // res1 is Err
+            assert_eq!(vals[2], Object::Boolean(false)); // res2 is not Ok
+            assert_eq!(vals[3], Object::Boolean(true));  // res2 is Err
+        }
+        other => panic!("expected array from file open error test, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_file_namespace_read_write_errors() {
+    let input = r#"
+        // Open a real file; if this fails we still expect subsequent calls
+        // to produce errors, but in normal test runs it should succeed.
+        let opened = File::open("tmp_file_namespace_errors.txt", "w+");
+        let f = Result::unwrapOr(opened, 0);
+
+        // Using non-file as first argument
+        let res1 = File::read(123);
+        let res2 = File::write(123, "data");
+
+        // Wrong type for data argument
+        let res3 = File::write(f, 42);
+
+        // Closed file errors
+        let _ = File::close(f);
+        let res4 = File::read(f);
+
+        let a = Result::isErr(res1);
+        let b = Result::isErr(res2);
+        let c = Result::isErr(res3);
+        let d = Result::isErr(res4);
+
+        [a, b, c, d];
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Array(vals) => {
+            assert_eq!(vals.len(), 4);
+            // All four scenarios should produce Result::Err(...)
+            assert_eq!(vals[0], Object::Boolean(true));
+            assert_eq!(vals[1], Object::Boolean(true));
+            assert_eq!(vals[2], Object::Boolean(true));
+            assert_eq!(vals[3], Object::Boolean(true));
+        }
+        other => panic!("expected array from file read/write error test, got {:?}", other),
+    }
+}
+
+#[test]
 fn test_function_statement() {
     let input = r#"
         function fact(n) {

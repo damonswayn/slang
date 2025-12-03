@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::object::Object;
-use crate::builtins::native::{
+use crate::builtins::native::monad_builtins::{
     option_some,
     option_none,
     option_is_some,
@@ -22,10 +22,19 @@ use crate::builtins::native::{
     result_and_then,
     result_bind,
     result_fmap,
+};
+use crate::builtins::native::regex_builtins::{
     builtin_regex_is_match,
     builtin_regex_find,
     builtin_regex_replace,
     builtin_regex_match,
+};
+use crate::builtins::native::file_builtins::{
+    file_open_result,
+    file_read_result,
+    file_write_result,
+    file_seek_result,
+    file_close_result,
 };
 
 /// Reference-counted, interior-mutable environment handle
@@ -74,7 +83,7 @@ pub fn new_env() -> EnvRef {
     let env = Environment::new();
 
     {
-        // Pre-bind namespaces Option, Result and Regex.
+        // Pre-bind namespaces Option, Result, Regex and File.
         let mut inner = env.borrow_mut();
 
         // Option = { Some, None, isSome, isNone, unwrapOr, map, andThen, bind, fmap }
@@ -110,6 +119,15 @@ pub fn new_env() -> EnvRef {
         regex_methods.insert("replace".to_string(), Object::Builtin(builtin_regex_replace));
         regex_methods.insert("match".to_string(), Object::Builtin(builtin_regex_match));
         inner.set("Regex".to_string(), Object::Object(regex_methods));
+
+        // File = { open, read, write, seek, close } – Result-based wrappers
+        let mut file_methods = HashMap::new();
+        file_methods.insert("open".to_string(), Object::Builtin(file_open_result));
+        file_methods.insert("read".to_string(), Object::Builtin(file_read_result));
+        file_methods.insert("write".to_string(), Object::Builtin(file_write_result));
+        file_methods.insert("seek".to_string(), Object::Builtin(file_seek_result));
+        file_methods.insert("close".to_string(), Object::Builtin(file_close_result));
+        inner.set("File".to_string(), Object::Object(file_methods));
     }
 
     env

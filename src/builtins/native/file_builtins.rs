@@ -2,9 +2,9 @@ use std::cell::RefCell;
 use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::rc::Rc;
+use crate::env::EnvRef;
 use crate::object::Object;
 use crate::object::types::{FileHandle, FileRef};
-use crate::env::EnvRef;
 
 // Builtin functions
 
@@ -148,5 +148,57 @@ fn expect_file(obj: &Object) -> Result<FileRef, Object> {
         }
     } else {
         Err(Object::Error("expected file object".into()))
+    }
+}
+
+// ----- Result-based wrappers for File namespace -----
+//
+// These convert the raw file_* results into `Result::Ok(...)` / `Result::Err("...")`
+// values for easier composition in Slang:
+//
+//   File::open(path, mode)
+//   File::read(file)
+//   File::write(file, data)
+//   File::seek(file, offset, whence)
+//   File::close(file)
+//
+
+pub(crate) fn file_open_result(args: Vec<Object>, env: EnvRef) -> Object {
+    let res = builtin_open(args, env);
+    match res {
+        Object::Error(msg) => Object::ResultErr(Box::new(Object::String(msg))),
+        other => Object::ResultOk(Box::new(other)),
+    }
+}
+
+pub(crate) fn file_read_result(args: Vec<Object>, env: EnvRef) -> Object {
+    let res = builtin_read(args, env);
+    match res {
+        Object::Error(msg) => Object::ResultErr(Box::new(Object::String(msg))),
+        other => Object::ResultOk(Box::new(other)),
+    }
+}
+
+pub(crate) fn file_write_result(args: Vec<Object>, env: EnvRef) -> Object {
+    let res = builtin_write(args, env);
+    match res {
+        Object::Error(msg) => Object::ResultErr(Box::new(Object::String(msg))),
+        other => Object::ResultOk(Box::new(other)),
+    }
+}
+
+pub(crate) fn file_seek_result(args: Vec<Object>, env: EnvRef) -> Object {
+    let res = builtin_seek(args, env);
+    match res {
+        Object::Error(msg) => Object::ResultErr(Box::new(Object::String(msg))),
+        other => Object::ResultOk(Box::new(other)),
+    }
+}
+
+pub(crate) fn file_close_result(args: Vec<Object>, env: EnvRef) -> Object {
+    let res = builtin_close(args, env);
+    match res {
+        Object::Error(msg) => Object::ResultErr(Box::new(Object::String(msg))),
+        other => Object::ResultOk(Box::new(other)),
     }
 }

@@ -245,3 +245,21 @@ let r = regexReplace("foo 123 bar 456", "\d+", "X"); // foo X bar X
 let c1 = regexMatch("abc123", "([a-z]+)(\d+)"); // Some(["abc123", "abc", "123"])
 let c2 = regexMatch("no-digits", "(\d+)"); // None()
 ```
+
+### Monadic results for file operations
+
+```
+let opened = File::open("test.txt", "w+");
+let f = Result::unwrapOr(opened, 0);
+
+let res1 = File::read(123); // Result::Err()
+let res2 = File::write(123, "data"); // Result::Err()
+let res3 = File::write(f, 42); // Result::Err()
+let _ = File::close(f);
+let res4 = File::read(f); // Result::Err()
+
+let a = Result::isErr(res1);
+let b = Result::isErr(res2);
+let c = Result::isErr(res3);
+let d = Result::isErr(res4);
+```

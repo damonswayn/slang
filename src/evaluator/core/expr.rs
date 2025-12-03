@@ -326,15 +326,23 @@ fn eval_call_expression(call: &CallExpression, env: EnvRef) -> Object {
             }
         };
 
-        return apply_function_with_this(method, args, Some(receiver));
+        return apply_function_with_this(method, args, Some(receiver), Rc::clone(&env));
     }
 
     // Regular function call
     let function = eval_expression(&call.function, Rc::clone(&env));
-    apply_function_with_this(function, args, None)
+    apply_function_with_this(function, args, None, env)
 }
 
-fn apply_function_with_this(func: Object, args: Vec<Object>, this: Option<Object>) -> Object {
+/// Apply a function or builtin value to arguments, optionally binding `this`
+/// for method-style calls. Exposed so native builtins can reuse the same
+/// calling convention when they receive higher-order function arguments.
+pub fn apply_function_with_this(
+    func: Object,
+    args: Vec<Object>,
+    this: Option<Object>,
+    caller_env: EnvRef,
+) -> Object {
     match func {
         Object::Function { params, body, env } => {
             let extended = new_enclosed_env(env);
@@ -352,9 +360,16 @@ fn apply_function_with_this(func: Object, args: Vec<Object>, this: Option<Object
                 }
             }
 
-            super::stmt::eval_block_statement(&body, extended)
+            // Execute function body and unwrap an explicit `return` value if present,
+            // so callers see the inner value rather than a ReturnValue wrapper.
+            let result = super::stmt::eval_block_statement(&body, extended);
+            if let Object::ReturnValue(inner) = result {
+                *inner
+            } else {
+                result
+            }
         }
-        Object::Builtin(f) => f(args),
+        Object::Builtin(f) => f(args, caller_env),
         other => Object::error(format!("not a function: {:?}", other)),
     }
 }

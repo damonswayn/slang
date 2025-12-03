@@ -124,7 +124,14 @@ impl Lexer {
             Some(',') => Token::new(TokenType::Comma, String::from(",")),
             Some('[' ) => Token::new(TokenType::Lbracket, String::from("[")),
             Some(']') => Token::new(TokenType::Rbracket, String::from("]")),
-            Some(':') => Token::new(TokenType::Colon, String::from(":")),
+            Some(':') => {
+                if self.peek_char() == Some(':') {
+                    self.read_char();
+                    Token::new(TokenType::ColonColon, String::from("::"))
+                } else {
+                    Token::new(TokenType::Colon, String::from(":"))
+                }
+            }
             None => Token::new(TokenType::Eof, String::from("")),
             Some(ch) => {
                 if is_letter(ch) {

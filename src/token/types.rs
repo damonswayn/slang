@@ -19,6 +19,8 @@ pub enum TokenType {
     Mod,
 
     Dot,
+    /// Double-colon, used for qualified access like `Option::Some`
+    ColonColon,
 
     And,
     Or,

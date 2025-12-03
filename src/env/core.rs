@@ -3,6 +3,26 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::object::Object;
+use crate::builtins::native::{
+    option_some,
+    option_none,
+    option_is_some,
+    option_is_none,
+    option_unwrap_or,
+    option_map,
+    option_and_then,
+    option_bind,
+    option_fmap,
+    result_ok,
+    result_err,
+    result_is_ok,
+    result_is_err,
+    result_unwrap_or,
+    result_map,
+    result_and_then,
+    result_bind,
+    result_fmap,
+};
 
 /// Reference-counted, interior-mutable environment handle
 pub type EnvRef = Rc<RefCell<Environment>>;
@@ -47,7 +67,40 @@ impl Environment {
 /// Create a new, top-level environment.
 #[inline]
 pub fn new_env() -> EnvRef {
-    Environment::new()
+    let env = Environment::new();
+
+    {
+        // Pre-bind monad "namespaces" Option and Result.
+        let mut inner = env.borrow_mut();
+
+        // Option = { Some, None, isSome, isNone, unwrapOr, map, andThen, bind, fmap }
+        let mut option_methods = HashMap::new();
+        option_methods.insert("Some".to_string(), Object::Builtin(option_some));
+        option_methods.insert("None".to_string(), Object::Builtin(option_none));
+        option_methods.insert("isSome".to_string(), Object::Builtin(option_is_some));
+        option_methods.insert("isNone".to_string(), Object::Builtin(option_is_none));
+        option_methods.insert("unwrapOr".to_string(), Object::Builtin(option_unwrap_or));
+        option_methods.insert("map".to_string(), Object::Builtin(option_map));
+        option_methods.insert("andThen".to_string(), Object::Builtin(option_and_then));
+        option_methods.insert("bind".to_string(), Object::Builtin(option_bind));
+        option_methods.insert("fmap".to_string(), Object::Builtin(option_fmap));
+        inner.set("Option".to_string(), Object::Object(option_methods));
+
+        // Result = { Ok, Err, isOk, isErr, unwrapOr, map, andThen, bind, fmap }
+        let mut result_methods = HashMap::new();
+        result_methods.insert("Ok".to_string(), Object::Builtin(result_ok));
+        result_methods.insert("Err".to_string(), Object::Builtin(result_err));
+        result_methods.insert("isOk".to_string(), Object::Builtin(result_is_ok));
+        result_methods.insert("isErr".to_string(), Object::Builtin(result_is_err));
+        result_methods.insert("unwrapOr".to_string(), Object::Builtin(result_unwrap_or));
+        result_methods.insert("map".to_string(), Object::Builtin(result_map));
+        result_methods.insert("andThen".to_string(), Object::Builtin(result_and_then));
+        result_methods.insert("bind".to_string(), Object::Builtin(result_bind));
+        result_methods.insert("fmap".to_string(), Object::Builtin(result_fmap));
+        inner.set("Result".to_string(), Object::Object(result_methods));
+    }
+
+    env
 }
 
 /// Create a new environment enclosed within an existing outer environment.

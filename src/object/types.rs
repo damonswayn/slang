@@ -8,25 +8,50 @@ use crate::env::EnvRef;
 
 #[derive(Debug, Clone)]
 pub enum Object {
+    // Primitive scalar types
     Integer(i64),
     Float(f64),
     Boolean(bool),
     String(String),
+
+    // Compound data structures
     Array(Vec<Object>),
     Object(HashMap<String, Object>),
+
+    // Functions (user-defined and native)
     Function {
         params: Vec<Identifier>,
         body: BlockStatement,
         env: EnvRef,
     },
     Builtin(BuiltinFunction),
+
+    // Control-flow / special runtime values
     ReturnValue(Box<Object>),
+
+    // IO
     File(FileRef),
+
+    // Error handling
     Error(String),
+
+    // Algebraic data types / monads
+    /// An optional value: `Some(v)` or `None`.
+    OptionSome(Box<Object>),
+    OptionNone,
+
+    /// A result of a computation: `Ok(v)` or `Err(e)`.
+    ResultOk(Box<Object>),
+    ResultErr(Box<Object>),
+
+    // Null / unit
     Null,
 }
 
-pub type BuiltinFunction = fn(Vec<Object>) -> Object;
+/// Native builtin function type. Builtins receive the evaluated argument list
+/// and the calling environment, so they can (optionally) call back into the
+/// evaluator via higher-order helpers.
+pub type BuiltinFunction = fn(Vec<Object>, EnvRef) -> Object;
 
 pub type FileRef = Rc<RefCell<FileHandle>>;
 #[derive(Debug)]
@@ -71,6 +96,12 @@ impl PartialEq for Object {
             (Function { .. }, Function { .. }) => false,
             (Builtin(_), Builtin(_)) => false,
             (ReturnValue(a), ReturnValue(b)) => a == b,
+            (File(_), File(_)) => false,
+            (Error(a), Error(b)) => a == b,
+            (OptionSome(a), OptionSome(b)) => a == b,
+            (OptionNone, OptionNone) => true,
+            (ResultOk(a), ResultOk(b)) => a == b,
+            (ResultErr(a), ResultErr(b)) => a == b,
             (Null, Null) => true,
             _ => false,
         }
@@ -104,6 +135,10 @@ impl Display for Object {
             Object::ReturnValue(obj) => write!(f, "{}", obj.to_string()),
             Object::File(_) => write!(f, "<file>"),
             Object::Error(msg) => write!(f, "{}", msg),
+             Object::OptionSome(inner) => write!(f, "Some({})", inner),
+             Object::OptionNone => write!(f, "None"),
+             Object::ResultOk(inner) => write!(f, "Ok({})", inner),
+             Object::ResultErr(inner) => write!(f, "Err({})", inner),
             Object::Null => write!(f, "null"),
         }
     }

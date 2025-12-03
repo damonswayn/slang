@@ -4,7 +4,7 @@ use crate::ast::Program;
 use crate::env::EnvRef;
 use crate::object::Object;
 
-mod expr;
+pub mod expr;
 mod stmt;
 
 use stmt::eval_statement;

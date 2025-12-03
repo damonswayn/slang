@@ -28,8 +28,24 @@ impl Parser {
                 self.parse_for_statement().map(Statement::For)
             }
             TokenType::Function => {
-                debug_log!("  -> parsing Function statement");
-                self.parse_function_statement().map(Statement::Function)
+                // Disambiguate between:
+                //   - named function *statement*: `function foo(x) { ... }`
+                //   - anonymous function *expression* used as a statement:
+                //       `function(x) { ... };`
+                //
+                // If the next token is an identifier, we treat this as a
+                // declaration; otherwise, we fall back to the regular
+                // expression-statement path so the `function` token is
+                // parsed via the prefix function-literal parser.
+                if self.peek_token.token_type == TokenType::Ident {
+                    debug_log!("  -> parsing Function statement");
+                    self.parse_function_statement().map(Statement::Function)
+                } else {
+                    debug_log!("  -> treating `function` as expression statement");
+                    let stmt = self.parse_expression_statement();
+                    debug_log!("  -> parse_expression_statement (for function literal) returned: {:?}", stmt);
+                    stmt.map(Statement::Expression)
+                }
             }
             _ => {
                 debug_log!("  -> default: parsing Expression statement");

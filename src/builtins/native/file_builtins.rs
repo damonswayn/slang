@@ -4,10 +4,11 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::rc::Rc;
 use crate::object::Object;
 use crate::object::types::{FileHandle, FileRef};
+use crate::env::EnvRef;
 
 // Builtin functions
 
-pub fn builtin_open(args: Vec<Object>) -> Object {
+pub fn builtin_open(args: Vec<Object>, _env: EnvRef) -> Object {
     if args.len() != 2 {
         return Object::Error("wrong number of arguments".into());
     }
@@ -39,7 +40,7 @@ pub fn builtin_open(args: Vec<Object>) -> Object {
     }
 }
 
-pub fn builtin_read(args: Vec<Object>) -> Object {
+pub fn builtin_read(args: Vec<Object>, _env: EnvRef) -> Object {
     if args.len() < 1 || args.len() > 2 {
         return Object::Error("wrong number of arguments".into());
     }
@@ -88,7 +89,7 @@ pub fn builtin_read(args: Vec<Object>) -> Object {
     }
 }
 
-pub fn builtin_write(args: Vec<Object>) -> Object {
+pub fn builtin_write(args: Vec<Object>, _env: EnvRef) -> Object {
     if args.len() != 2 { return Object::Error("write(file, data) expects 2 args".into()) }
     let file_reference = match expect_file(&args[0]) { Ok(f) => f, Err(e) => return e };
     let data = match &args[1] { Object::String(s) => s.clone(), _ => return Object::Error("write: data must be string".into()) };
@@ -102,7 +103,7 @@ pub fn builtin_write(args: Vec<Object>) -> Object {
     }
 }
 
-pub fn builtin_seek(args: Vec<Object>) -> Object {
+pub fn builtin_seek(args: Vec<Object>, _env: EnvRef) -> Object {
     if args.len() != 3 { return Object::Error("seek(file, offset, whence) expects 3 args".into()) }
     let file_reference = match expect_file(&args[0]) { Ok(f) => f, Err(e) => return e };
     let offset = match &args[1] { Object::Integer(i) => *i, _ => return Object::Error("seek: offset must be integer".into()) };
@@ -124,7 +125,7 @@ pub fn builtin_seek(args: Vec<Object>) -> Object {
     }
 }
 
-pub fn builtin_close(args: Vec<Object>) -> Object {
+pub fn builtin_close(args: Vec<Object>, _env: EnvRef) -> Object {
     if args.len() != 1 { return Object::Error("close(file) expects 1 arg".into()) }
     let file_reference = match &args[0] {
         Object::File(fr) => Rc::clone(fr),

@@ -78,6 +78,17 @@ fn eval_infix_expression(infix: &InfixExpression, env: EnvRef) -> Object {
                 };
             }
 
+            // Object index assignment: `obj["field"] = expr` or nested `obj["a"]["b"] = expr`
+            if let Expression::IndexExpression(_) = &*infix.left {
+                let value = eval_expression(&infix.right, Rc::clone(&env));
+                let result =
+                    assign_to_index_expression(&infix.left, Rc::clone(&env), value.clone());
+                return match result {
+                    Ok(()) => value,
+                    Err(msg) => Object::error(msg),
+                };
+            }
+
             return Object::error("invalid assignment target");
         }
         And => {
@@ -423,6 +434,12 @@ fn eval_index_expression(ix: &IndexExpression, env: EnvRef) -> Object {
         (Object::Array(_), other) => {
             Object::error(format!("array index must be integer, got {:?}", other))
         }
+        (Object::Object(map), Object::String(key)) => {
+            map.get(&key).cloned().unwrap_or(Object::Null)
+        }
+        (Object::Object(_), other) => {
+            Object::error(format!("object index must be string, got {:?}", other))
+        }
         (other, _) => Object::error(format!("index operator not supported: {:?}", other)),
     }
 }
@@ -519,6 +536,79 @@ fn collect_property_chain(expr: &Expression, props: &mut Vec<String>) -> Option<
         Expression::PropertyAccess(inner) => {
             props.push(inner.property.value.clone());
             collect_property_chain(&inner.object, props)
+        }
+        _ => None,
+    }
+}
+
+/// Handle assignments like `obj["field"] = value` and nested `obj["a"]["b"] = value`.
+fn assign_to_index_expression(
+    target: &Expression,
+    env: EnvRef,
+    new_value: Object,
+) -> Result<(), String> {
+    let mut props: Vec<String> = Vec::new();
+    let root_ident =
+        collect_index_chain(target, Rc::clone(&env), &mut props).ok_or_else(|| {
+            "left side of assignment must be an object index (like x[\"y\"] or x[\"a\"][\"b\"])"
+                .to_string()
+        })?;
+
+    debug_log!(
+        "assign_to_index_expression: root = {}, props = {:?}",
+        root_ident,
+        props
+    );
+
+    // Get current root object value from environment
+    let current_root = {
+        let env_borrow = env.borrow();
+        match env_borrow.get(&root_ident) {
+            Some(obj) => obj,
+            None => {
+                return Err(format!(
+                    "identifier not found for index assignment: {}",
+                    root_ident
+                ))
+            }
+        }
+    };
+
+    // Recursively build an updated root object with the new value applied
+    let updated_root =
+        assign_into_object(current_root.clone(), &props, &new_value).map_err(|e| e)?;
+
+    // Store updated root back into current environment scope
+    env.borrow_mut().set(root_ident, updated_root);
+
+    Ok(())
+}
+
+/// Collect the root identifier and dynamic string key chain for an index-based
+/// assignment target, e.g. `obj["a"]["b"]` -> root `obj`, props = ["a", "b"].
+fn collect_index_chain(
+    expr: &Expression,
+    env: EnvRef,
+    props: &mut Vec<String>,
+) -> Option<String> {
+    match expr {
+        Expression::IndexExpression(ix) => {
+            // Evaluate the index expression and ensure it is a string key.
+            let key_val = eval_expression(&ix.index, Rc::clone(&env));
+            match key_val {
+                Object::String(s) => props.push(s),
+                _ => {
+                    return None; // will be turned into a user-facing error by caller
+                }
+            }
+
+            collect_index_chain(&ix.left, env, props)
+        }
+        Expression::Identifier(Identifier { value }) => {
+            // We have reached the root identifier; reverse collected props to
+            // be in left-to-right order (outermost to innermost).
+            props.reverse();
+            Some(value.clone())
         }
         _ => None,
     }

@@ -465,6 +465,49 @@ fn test_object_field_assignment_creates_new_field() {
 }
 
 #[test]
+fn test_object_indexing_with_string_literal_keys() {
+    let input = r#"
+        let p = { x: 1, y: 2 };
+        p["x"] + p["y"];
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Integer(i) => assert_eq!(i, 3),
+        _ => panic!("expected integer, got {:?}", obj),
+    }
+}
+
+#[test]
+fn test_object_indexing_with_string_variables() {
+    let input = r#"
+        let p = { x: 1, y: 2 };
+        let k = "x";
+        p[k];
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Integer(i) => assert_eq!(i, 1),
+        _ => panic!("expected integer, got {:?}", obj),
+    }
+}
+
+#[test]
+fn test_object_indexing_missing_key_returns_null() {
+    let input = r#"
+        let p = { x: 1 };
+        p["y"];
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Null => {}
+        other => panic!("expected null for missing key, got {:?}", other),
+    }
+}
+
+#[test]
 fn test_nested_object_field_assignment() {
     let input = r#"
         let p = { inner: { x: 1 } };
@@ -475,6 +518,52 @@ fn test_nested_object_field_assignment() {
     let obj = eval_input(input);
     match obj {
         Object::Integer(i) => assert_eq!(i, 99),
+        _ => panic!("expected integer, got {:?}", obj),
+    }
+}
+
+#[test]
+fn test_object_index_assignment_simple() {
+    let input = r#"
+        let p = { };
+        p["x"] = 42;
+        p["x"];
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Integer(i) => assert_eq!(i, 42),
+        _ => panic!("expected integer, got {:?}", obj),
+    }
+}
+
+#[test]
+fn test_nested_object_index_assignment() {
+    let input = r#"
+        let p = { inner: { x: 1 } };
+        p["inner"]["x"] = 99;
+        p["inner"]["x"];
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Integer(i) => assert_eq!(i, 99),
+        _ => panic!("expected integer, got {:?}", obj),
+    }
+}
+
+#[test]
+fn test_object_index_assignment_with_variable_key() {
+    let input = r#"
+        let p = { };
+        let k = "foo";
+        p[k] = 10;
+        p["foo"];
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Integer(i) => assert_eq!(i, 10),
         _ => panic!("expected integer, got {:?}", obj),
     }
 }

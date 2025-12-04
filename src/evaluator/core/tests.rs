@@ -424,6 +424,59 @@ fn test_array_indexing() {
 }
 
 #[test]
+fn test_array_map() {
+    let input = r#"
+        let xs = [1, 2, 3];
+        let ys = Array::map(xs, fn(x) { x + 1; });
+        ys;
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Array(vals) => {
+            assert_eq!(vals.len(), 3);
+            assert_eq!(vals[0], Object::Integer(2));
+            assert_eq!(vals[1], Object::Integer(3));
+            assert_eq!(vals[2], Object::Integer(4));
+        }
+        other => panic!("expected array from Array::map, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_array_filter() {
+    let input = r#"
+        let xs = [1, 2, 3, 4];
+        let ys = Array::filter(xs, fn(x) { x % 2 == 0; });
+        ys;
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Array(vals) => {
+            assert_eq!(vals.len(), 2);
+            assert_eq!(vals[0], Object::Integer(2));
+            assert_eq!(vals[1], Object::Integer(4));
+        }
+        other => panic!("expected array from Array::filter, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_array_reduce() {
+    let input = r#"
+        let xs = [1, 2, 3, 4];
+        Array::reduce(xs, 0, fn(acc, x) { acc + x; });
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Integer(i) => assert_eq!(i, 10),
+        other => panic!("expected integer from Array::reduce, got {:?}", other),
+    }
+}
+
+#[test]
 fn test_nested_array_indexing() {
     let input = "let a = [1, [2, 3], 4]; a[1][0];";
 

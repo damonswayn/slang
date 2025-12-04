@@ -41,6 +41,11 @@ use crate::builtins::native::test_builtins::{
     test_assert_eq,
     test_assert_not_eq,
 };
+use crate::builtins::native::array_builtins::{
+    array_map,
+    array_filter,
+    array_reduce,
+};
 
 /// Reference-counted, interior-mutable environment handle
 pub type EnvRef = Rc<RefCell<Environment>>;
@@ -88,7 +93,7 @@ pub fn new_env() -> EnvRef {
     let env = Environment::new();
 
     {
-        // Pre-bind namespaces Option, Result, Regex and File.
+        // Pre-bind namespaces Option, Result, Regex, File, Array and Test.
         let mut inner = env.borrow_mut();
 
         // Option = { Some, None, isSome, isNone, unwrapOr, map, andThen, bind, fmap }
@@ -133,6 +138,13 @@ pub fn new_env() -> EnvRef {
         file_methods.insert("seek".to_string(), Object::Builtin(file_seek_result));
         file_methods.insert("close".to_string(), Object::Builtin(file_close_result));
         inner.set("File".to_string(), Object::Object(file_methods));
+
+        // Array = { map, filter, reduce }
+        let mut array_methods = HashMap::new();
+        array_methods.insert("map".to_string(), Object::Builtin(array_map));
+        array_methods.insert("filter".to_string(), Object::Builtin(array_filter));
+        array_methods.insert("reduce".to_string(), Object::Builtin(array_reduce));
+        inner.set("Array".to_string(), Object::Object(array_methods));
 
         // Test = { assert, assertEq, assertNotEq }
         let mut test_methods = HashMap::new();

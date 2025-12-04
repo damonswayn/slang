@@ -88,6 +88,38 @@ fn test_float_arithmetic_and_comparisons() {
 }
 
 #[test]
+fn test_math_namespace_basic() {
+    let input = r#"
+        let a = Math::abs(-5);
+        let b = Math::abs(-1.5);
+        let c = Math::floor(1.9);
+        let d = Math::ceil(1.1);
+        let e = Math::round(1.6);
+        let f = Math::min(2, 3.5);
+        let g = Math::max(2, 3.5);
+        let h = Math::pow(2, 3);
+
+        [a, b, c, d, e, f, g, h];
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Array(vals) => {
+            assert_eq!(vals.len(), 8);
+            assert_eq!(vals[0], Object::Integer(5));
+            assert_eq!(vals[1], Object::Float(1.5));
+            assert_eq!(vals[2], Object::Integer(1)); // floor(1.9)
+            assert_eq!(vals[3], Object::Integer(2)); // ceil(1.1)
+            assert_eq!(vals[4], Object::Integer(2)); // round(1.6)
+            assert_eq!(vals[5], Object::Float(2.0)); // min(2, 3.5)
+            assert_eq!(vals[6], Object::Float(3.5)); // max(2, 3.5)
+            assert_eq!(vals[7], Object::Float(8.0)); // pow(2, 3)
+        }
+        other => panic!("expected array from Math namespace test, got {:?}", other),
+    }
+}
+
+#[test]
 fn test_if_expressions() {
     let cases = vec![
         ("if (true) { 10; }", Some(10)),
@@ -387,6 +419,55 @@ fn test_string_equality() {
 }
 
 #[test]
+fn test_string_namespace_basic() {
+    let input = r#"
+        let s = "  Hello World  ";
+        let t = String::trim(s);
+        let upper = String::toUpper(t);
+        let lower = String::toLower(t);
+
+        let parts = String::split("a,b,c", ",");
+        let chars = String::split("hi", "");
+        let joined = String::join(["x", "y", "z"], "-");
+
+        [t, upper, lower, parts, chars, joined];
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Array(vals) => {
+            assert_eq!(vals.len(), 6);
+
+            assert_eq!(vals[0], Object::String("Hello World".to_string()));
+            assert_eq!(vals[1], Object::String("HELLO WORLD".to_string()));
+            assert_eq!(vals[2], Object::String("hello world".to_string()));
+
+            match &vals[3] {
+                Object::Array(parts) => {
+                    assert_eq!(parts.len(), 3);
+                    assert_eq!(parts[0], Object::String("a".to_string()));
+                    assert_eq!(parts[1], Object::String("b".to_string()));
+                    assert_eq!(parts[2], Object::String("c".to_string()));
+                }
+                other => panic!("expected array from String::split, got {:?}", other),
+            }
+
+            match &vals[4] {
+                Object::Array(chars) => {
+                    assert_eq!(chars.len(), 2);
+                    assert_eq!(chars[0], Object::String("h".to_string()));
+                    assert_eq!(chars[1], Object::String("i".to_string()));
+                }
+                other => panic!("expected array of chars from String::split with empty sep, got {:?}", other),
+            }
+
+            assert_eq!(vals[5], Object::String("x-y-z".to_string()));
+        }
+        other => panic!("expected array from String namespace test, got {:?}", other),
+    }
+}
+
+#[test]
 fn test_array_literal() {
     let input = "[1, 2, 3];";
 
@@ -473,6 +554,52 @@ fn test_array_reduce() {
     match obj {
         Object::Integer(i) => assert_eq!(i, 10),
         other => panic!("expected integer from Array::reduce, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_array_find_some_every_flat_map() {
+    let input = r#"
+        let xs = [1, 2, 3, 4, 5];
+
+        let found = Array::find(xs, fn(x) { x % 2 == 0; });
+        let someEven = Array::some(xs, fn(x) { x % 2 == 0; });
+        let someGtFive = Array::some(xs, fn(x) { x > 5; });
+        let allPositive = Array::every(xs, fn(x) { x > 0; });
+        let allEven = Array::every(xs, fn(x) { x % 2 == 0; });
+
+        let pairs = Array::flatMap(xs, fn(x) { [x, x * 10]; });
+
+        [found, someEven, someGtFive, allPositive, allEven, pairs];
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Array(vals) => {
+            assert_eq!(vals.len(), 6);
+
+            match &vals[0] {
+                Object::OptionSome(inner) => assert_eq!(**inner, Object::Integer(2)),
+                other => panic!("expected Option::Some(2) from Array::find, got {:?}", other),
+            }
+
+            assert_eq!(vals[1], Object::Boolean(true));  // some even
+            assert_eq!(vals[2], Object::Boolean(false)); // some > 5
+            assert_eq!(vals[3], Object::Boolean(true));  // all > 0
+            assert_eq!(vals[4], Object::Boolean(false)); // not all even
+
+            match &vals[5] {
+                Object::Array(pairs) => {
+                    assert_eq!(pairs.len(), 10);
+                    assert_eq!(pairs[0], Object::Integer(1));
+                    assert_eq!(pairs[1], Object::Integer(10));
+                    assert_eq!(pairs[8], Object::Integer(5));
+                    assert_eq!(pairs[9], Object::Integer(50));
+                }
+                other => panic!("expected array from Array::flatMap, got {:?}", other),
+            }
+        }
+        other => panic!("expected array from Array::find/some/every/flatMap test, got {:?}", other),
     }
 }
 
@@ -844,6 +971,53 @@ fn test_regex_builtins() {
             assert_eq!(vals[6], Object::OptionNone);
         }
         other => panic!("expected array from regex builtins test, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_json_namespace_parse_and_stringify() {
+    let input = r#"
+        // Parsing a simple JSON array (no embedded quotes needed in the source).
+        let s = "[1, true, null, 3.5]";
+        let parsedArr = Json::parse(s);
+        let arr = Result::unwrapOr(parsedArr, 0);
+
+        let a0 = arr[0];
+        let a1 = arr[1];
+        let a2 = arr[2];
+        let a3 = arr[3];
+
+        // Stringify a Slang object and check the JSON output (no `null` literal in Slang).
+        let obj = { a: 1, b: [true, 3.5] };
+        let roundTrip = Json::stringify(obj);
+        let rtStr = Result::unwrapOr(roundTrip, "ERR");
+
+        [a0, a1, a2, a3, rtStr];
+    "#;
+
+    let obj = eval_input(input);
+    match obj {
+        Object::Array(vals) => {
+            assert_eq!(vals.len(), 5);
+
+            assert_eq!(vals[0], Object::Integer(1));   // a0
+            assert_eq!(vals[1], Object::Boolean(true)); // a1
+            assert_eq!(vals[2], Object::Null);          // a2
+            match &vals[3] {                            // a3
+                Object::Float(f) => assert!((*f - 3.5).abs() < 1e-9),
+                other => panic!("expected float 3.5, got {:?}", other),
+            }
+
+            match &vals[4] {
+                Object::String(s) => {
+                    // serde_json::to_string produces a compact representation with
+                    // stable key order for this object.
+                    assert_eq!(s, "{\"a\":1,\"b\":[true,3.5]}");
+                }
+                other => panic!("expected JSON string from Json::stringify, got {:?}", other),
+            }
+        }
+        other => panic!("expected array from Json namespace test, got {:?}", other),
     }
 }
 

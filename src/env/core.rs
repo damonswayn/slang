@@ -45,6 +45,34 @@ use crate::builtins::native::array_builtins::{
     array_map,
     array_filter,
     array_reduce,
+    array_find,
+    array_some,
+    array_every,
+    array_flat_map,
+};
+use crate::builtins::native::math_builtins::{
+    math_abs,
+    math_floor,
+    math_ceil,
+    math_round,
+    math_min,
+    math_max,
+    math_pow,
+    math_sin,
+    math_cos,
+    math_tan,
+    math_sqrt,
+};
+use crate::builtins::native::string_builtins::{
+    string_trim,
+    string_to_upper,
+    string_to_lower,
+    string_split,
+    string_join,
+};
+use crate::builtins::native::json_builtins::{
+    json_parse,
+    json_stringify,
 };
 
 /// Reference-counted, interior-mutable environment handle
@@ -93,7 +121,7 @@ pub fn new_env() -> EnvRef {
     let env = Environment::new();
 
     {
-        // Pre-bind namespaces Option, Result, Regex, File, Array and Test.
+        // Pre-bind namespaces Option, Result, Regex, File, Array, Math, String, Json and Test.
         let mut inner = env.borrow_mut();
 
         // Option = { Some, None, isSome, isNone, unwrapOr, map, andThen, bind, fmap }
@@ -139,12 +167,46 @@ pub fn new_env() -> EnvRef {
         file_methods.insert("close".to_string(), Object::Builtin(file_close_result));
         inner.set("File".to_string(), Object::Object(file_methods));
 
-        // Array = { map, filter, reduce }
+        // Array = { map, filter, reduce, find, some, every, flatMap }
         let mut array_methods = HashMap::new();
         array_methods.insert("map".to_string(), Object::Builtin(array_map));
         array_methods.insert("filter".to_string(), Object::Builtin(array_filter));
         array_methods.insert("reduce".to_string(), Object::Builtin(array_reduce));
+        array_methods.insert("find".to_string(), Object::Builtin(array_find));
+        array_methods.insert("some".to_string(), Object::Builtin(array_some));
+        array_methods.insert("every".to_string(), Object::Builtin(array_every));
+        array_methods.insert("flatMap".to_string(), Object::Builtin(array_flat_map));
         inner.set("Array".to_string(), Object::Object(array_methods));
+
+        // Math = { abs, floor, ceil, round, min, max, pow, sin, cos, tan, sqrt }
+        let mut math_methods = HashMap::new();
+        math_methods.insert("abs".to_string(), Object::Builtin(math_abs));
+        math_methods.insert("floor".to_string(), Object::Builtin(math_floor));
+        math_methods.insert("ceil".to_string(), Object::Builtin(math_ceil));
+        math_methods.insert("round".to_string(), Object::Builtin(math_round));
+        math_methods.insert("min".to_string(), Object::Builtin(math_min));
+        math_methods.insert("max".to_string(), Object::Builtin(math_max));
+        math_methods.insert("pow".to_string(), Object::Builtin(math_pow));
+        math_methods.insert("sin".to_string(), Object::Builtin(math_sin));
+        math_methods.insert("cos".to_string(), Object::Builtin(math_cos));
+        math_methods.insert("tan".to_string(), Object::Builtin(math_tan));
+        math_methods.insert("sqrt".to_string(), Object::Builtin(math_sqrt));
+        inner.set("Math".to_string(), Object::Object(math_methods));
+
+        // String = { trim, toUpper, toLower, split, join }
+        let mut string_methods = HashMap::new();
+        string_methods.insert("trim".to_string(), Object::Builtin(string_trim));
+        string_methods.insert("toUpper".to_string(), Object::Builtin(string_to_upper));
+        string_methods.insert("toLower".to_string(), Object::Builtin(string_to_lower));
+        string_methods.insert("split".to_string(), Object::Builtin(string_split));
+        string_methods.insert("join".to_string(), Object::Builtin(string_join));
+        inner.set("String".to_string(), Object::Object(string_methods));
+
+        // Json = { parse, stringify }
+        let mut json_methods = HashMap::new();
+        json_methods.insert("parse".to_string(), Object::Builtin(json_parse));
+        json_methods.insert("stringify".to_string(), Object::Builtin(json_stringify));
+        inner.set("Json".to_string(), Object::Object(json_methods));
 
         // Test = { assert, assertEq, assertNotEq }
         let mut test_methods = HashMap::new();

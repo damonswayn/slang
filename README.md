@@ -263,3 +263,73 @@ let b = Result::isErr(res2);
 let c = Result::isErr(res3);
 let d = Result::isErr(res4);
 ```
+
+## Standard library
+
+Slang ships with a small standard library that is preloaded into the global
+environment whenever you run a script or the REPL.
+
+### Namespaces
+
+- **Option**
+  - Represents optional values: `Some(v)` or `None`.
+  - Exposed as a namespace object with the following helpers:
+    - `Option::Some(value)` – wrap a value in an `Option`.
+    - `Option::None()` – create an empty option.
+    - `Option::isSome(opt)` / `Option::isNone(opt)` – boolean checks.
+    - `Option::unwrapOr(opt, default)` – returns the inner value or a default.
+    - `Option::map(opt, fn)` / `Option::fmap(opt, fn)` – transform the inner value if present.
+    - `Option::andThen(opt, fn)` / `Option::bind(opt, fn)` – monadic bind; `fn` should return an `Option`.
+
+- **Result**
+  - Represents the outcome of computations that can succeed or fail: `Ok(v)` or `Err(e)`.
+  - Exposed as a namespace object with helpers:
+    - `Result::Ok(value)` / `Result::Err(errorValue)`.
+    - `Result::isOk(res)` / `Result::isErr(res)`.
+    - `Result::unwrapOr(res, default)` – returns inner value on `Ok`, default on `Err`.
+    - `Result::map(res, fn)` / `Result::fmap(res, fn)` – transform the success value.
+    - `Result::andThen(res, fn)` / `Result::bind(res, fn)` – monadic bind; `fn` should return a `Result`.
+
+- **Array**
+  - Provides higher-order helpers for working with arrays:
+    - `Array::map(arr, fn)` – returns a new array with `fn(element)` applied to each element.
+    - `Array::filter(arr, fn)` – returns a new array containing only elements where `fn(element)` is `true`.
+    - `Array::reduce(arr, initial, fn)` – folds the array from left to right, calling `fn(acc, element)`.
+  - These complement the lower-level builtins like `len`, `first`, `last`, `rest`, and `push`.
+
+- **Regex**
+  - Regex helpers are available both as free functions and under the `Regex` namespace:
+    - `Regex::isMatch(text, pattern)` – boolean match test.
+    - `Regex::find(text, pattern)` – returns `Option::Some(match)` or `Option::None()`.
+    - `Regex::replace(text, pattern, replacement)` – returns a new string with replacements.
+    - `Regex::match(text, pattern)` – returns `Option::Some(arrayOfGroups)` or `Option::None()`.
+  - The free-function aliases (`regexIsMatch`, `regexFind`, `regexReplace`, `regexMatch`) remain available for convenience.
+
+- **File**
+  - Low-level file operations exist as free functions (`file_open`, `file_read`, `file_write`, etc.), but the
+    preferred interface is the `File` namespace, which wraps results in `Result`:
+    - `File::open(path, mode)` – returns `Result::Ok(file)` or `Result::Err(error)`.
+    - `File::read(file)` – returns `Result::Ok(string)` or `Result::Err(error)`.
+    - `File::write(file, string)` – returns `Result::Ok(unit)` or `Result::Err(error)`.
+    - `File::seek(file, offset, origin)` – returns `Result::Ok(unit)` or `Result::Err(error)`.
+    - `File::close(file)` – returns `Result::Ok(unit)` or `Result::Err(error)`.
+
+- **Test**
+  - The `Test` namespace provides basic assertion helpers designed for writing test scripts:
+    - `Test::assert(condition)` – fails if `condition` is false.
+    - `Test::assertEq(expected, actual)` – equality assertion.
+    - `Test::assertNotEq(expected, actual)` – inequality assertion.
+
+### Top-level builtins
+
+In addition to the namespaced modules above, a handful of helpers are exposed
+as top-level builtins:
+
+- **len(x)** – length of a string or array.
+- **first(arr)** / **last(arr)** / **rest(arr)** / **push(arr, value)** – basic array helpers.
+- **print(...args)** – print values to stdout (used throughout the examples).
+- **debug(bool)** – enable or disable Slang's internal debug logging.
+
+Over time, more functionality may move into namespaced modules for better
+organization, but the existing free functions will continue to work for
+backwards compatibility.

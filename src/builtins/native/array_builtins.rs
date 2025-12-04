@@ -111,4 +111,164 @@ pub(crate) fn array_reduce(mut args: Vec<Object>, env: EnvRef) -> Object {
     }
 }
 
+/// Array::find(arr, f) – returns Option::Some(element) of the first match, or Option::None().
+pub(crate) fn array_find(mut args: Vec<Object>, env: EnvRef) -> Object {
+    if args.len() != 2 {
+        return Object::error("Array::find expects exactly 2 arguments (array, fn)");
+    }
+
+    let func = args.pop().unwrap();
+    let arr = args.pop().unwrap();
+
+    match arr {
+        Object::Array(elems) => {
+            for elem in elems.iter() {
+                let predicate = apply_function_with_this(
+                    func.clone(),
+                    vec![elem.clone()],
+                    None,
+                    Rc::clone(&env),
+                );
+
+                match predicate {
+                    Object::Boolean(true) => {
+                        return Object::OptionSome(Box::new(elem.clone()));
+                    }
+                    Object::Boolean(false) => {}
+                    other => {
+                        return Object::error(format!(
+                            "Array::find predicate must return boolean, got {:?}",
+                            other
+                        ))
+                    }
+                }
+            }
+
+            Object::OptionNone
+        }
+        other => Object::error(format!(
+            "Array::find expects an Array value as first argument, got {:?}",
+            other
+        )),
+    }
+}
+
+/// Array::some(arr, f) – returns true if any element matches the predicate.
+pub(crate) fn array_some(mut args: Vec<Object>, env: EnvRef) -> Object {
+    if args.len() != 2 {
+        return Object::error("Array::some expects exactly 2 arguments (array, fn)");
+    }
+
+    let func = args.pop().unwrap();
+    let arr = args.pop().unwrap();
+
+    match arr {
+        Object::Array(elems) => {
+            for elem in elems.iter() {
+                let predicate = apply_function_with_this(
+                    func.clone(),
+                    vec![elem.clone()],
+                    None,
+                    Rc::clone(&env),
+                );
+
+                match predicate {
+                    Object::Boolean(true) => return Object::Boolean(true),
+                    Object::Boolean(false) => {}
+                    other => {
+                        return Object::error(format!(
+                            "Array::some predicate must return boolean, got {:?}",
+                            other
+                        ))
+                    }
+                }
+            }
+
+            Object::Boolean(false)
+        }
+        other => Object::error(format!(
+            "Array::some expects an Array value as first argument, got {:?}",
+            other
+        )),
+    }
+}
+
+/// Array::every(arr, f) – returns true if all elements match the predicate.
+pub(crate) fn array_every(mut args: Vec<Object>, env: EnvRef) -> Object {
+    if args.len() != 2 {
+        return Object::error("Array::every expects exactly 2 arguments (array, fn)");
+    }
+
+    let func = args.pop().unwrap();
+    let arr = args.pop().unwrap();
+
+    match arr {
+        Object::Array(elems) => {
+            for elem in elems.iter() {
+                let predicate = apply_function_with_this(
+                    func.clone(),
+                    vec![elem.clone()],
+                    None,
+                    Rc::clone(&env),
+                );
+
+                match predicate {
+                    Object::Boolean(true) => {}
+                    Object::Boolean(false) => return Object::Boolean(false),
+                    other => {
+                        return Object::error(format!(
+                            "Array::every predicate must return boolean, got {:?}",
+                            other
+                        ))
+                    }
+                }
+            }
+
+            Object::Boolean(true)
+        }
+        other => Object::error(format!(
+            "Array::every expects an Array value as first argument, got {:?}",
+            other
+        )),
+    }
+}
+
+/// Array::flatMap(arr, f) – maps each element to an array and concatenates the results.
+pub(crate) fn array_flat_map(mut args: Vec<Object>, env: EnvRef) -> Object {
+    if args.len() != 2 {
+        return Object::error("Array::flatMap expects exactly 2 arguments (array, fn)");
+    }
+
+    let func = args.pop().unwrap();
+    let arr = args.pop().unwrap();
+
+    match arr {
+        Object::Array(elems) => {
+            let mut out = Vec::new();
+
+            for elem in elems.into_iter() {
+                let result =
+                    apply_function_with_this(func.clone(), vec![elem], None, Rc::clone(&env));
+
+                match result {
+                    Object::Array(inner) => out.extend(inner.into_iter()),
+                    other => {
+                        return Object::error(format!(
+                            "Array::flatMap expects function to return array, got {:?}",
+                            other
+                        ))
+                    }
+                }
+            }
+
+            Object::Array(out)
+        }
+        other => Object::error(format!(
+            "Array::flatMap expects an Array value as first argument, got {:?}",
+            other
+        )),
+    }
+}
+
+
 

@@ -8,6 +8,9 @@ pub mod file_builtins;
 pub mod regex_builtins;
 pub mod test_builtins;
 pub mod array_builtins;
+pub mod math_builtins;
+pub mod string_builtins;
+pub mod json_builtins;
 
 // Re-export file builtins so other modules (like env) can
 // attach them under namespaces without knowing the submodule path.

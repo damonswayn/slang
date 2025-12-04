@@ -2,7 +2,7 @@ use crate::ast::{
     Expression, ExpressionStatement, FunctionLiteral, Identifier, IntegerLiteral, LetStatement,
     ReturnStatement, Statement, WhileStatement,
 };
-use crate::ast::nodes::{ForStatement, FunctionStatement};
+use crate::ast::nodes::{ForStatement, FunctionStatement, TestStatement};
 use crate::debug_log;
 use crate::token::TokenType;
 
@@ -46,6 +46,10 @@ impl Parser {
                     debug_log!("  -> parse_expression_statement (for function literal) returned: {:?}", stmt);
                     stmt.map(Statement::Expression)
                 }
+            }
+            TokenType::Test => {
+                debug_log!("  -> parsing Test statement");
+                self.parse_test_statement().map(Statement::Test)
             }
             _ => {
                 debug_log!("  -> default: parsing Expression statement");
@@ -264,6 +268,24 @@ impl Parser {
             name,
             literal: FunctionLiteral { params, body },
         })
+    }
+
+    fn parse_test_statement(&mut self) -> Option<TestStatement> {
+        // current token is 'test'
+        if !self.expect_peek(TokenType::String) {
+            return None;
+        }
+
+        // cur_token is now the string literal token
+        let name = self.cur_token.literal.clone();
+
+        if !self.expect_peek(TokenType::Lbrace) {
+            return None;
+        }
+
+        let body = self.parse_block_statement()?;
+
+        Some(TestStatement { name, body })
     }
 }
 

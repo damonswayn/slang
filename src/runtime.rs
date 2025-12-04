@@ -1,4 +1,4 @@
 pub mod core;
 
-pub use core::{Environment, EnvRef, Object, eval, get_builtin};
+pub use core::{Environment, EnvRef, Object, eval, get_builtin, TestRunSummary, run_tests};
 

@@ -28,6 +28,7 @@ pub enum Statement {
     While(WhileStatement),
     For(ForStatement),
     Function(FunctionStatement),
+    Test(TestStatement),
 }
 
 impl Display for Statement {
@@ -39,6 +40,7 @@ impl Display for Statement {
             Statement::For(fs) => write!(f, "{}", fs),
             Statement::Expression(es) => write!(f, "{}", es),
             Statement::Function(fs) => write!(f, "{}", fs),
+            Statement::Test(ts) => write!(f, "{}", ts),
         }
     }
 }
@@ -449,13 +451,27 @@ pub struct FunctionStatement {
 
 impl Display for FunctionStatement {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "fn(")?;
+        write!(f, "function {}(", self.name)?;
         for (i, p) in self.literal.params.iter().enumerate() {
             if i > 0 { write!(f, ", ")?; }
             write!(f, "{}", p)?;
         }
         write!(f, ") {{")?;
         write!(f, "{}", self.literal.body)?;
+        write!(f, "}}")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TestStatement {
+    pub name: String,
+    pub body: BlockStatement,
+}
+
+impl Display for TestStatement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "test \"{}\" {{", self.name)?;
+        write!(f, "{}", self.body)?;
         write!(f, "}}")
     }
 }

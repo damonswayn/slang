@@ -19,6 +19,9 @@ pub fn eval(program: &Program, env: EnvRef) -> Object {
         if let Object::ReturnValue(val) = result {
             return *val;
         }
+        if result.is_error() {
+            return result;
+        }
     }
 
     result

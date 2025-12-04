@@ -570,14 +570,14 @@ fn test_for_loop_no_init() {
 #[test]
 fn test_for_loop_with_return() {
     let input = r#"
-        fn test() {
+        fn loopTest() {
             for (let x = 0; ; x = x + 1) {
                 if (x == 3) {
                     return x;
                 }
             }
         }
-        test();
+        loopTest();
     "#;
 
     let obj = eval_input(input);

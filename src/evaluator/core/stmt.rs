@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::ast::nodes::{ForStatement, FunctionStatement, ReturnStatement};
+use crate::ast::nodes::{ForStatement, FunctionStatement, ReturnStatement, TestStatement};
 use crate::ast::{
     BlockStatement, IfExpression, LetStatement, Statement, WhileStatement,
 };
@@ -17,6 +17,7 @@ pub(super) fn eval_statement(stmt: &Statement, env: EnvRef) -> Object {
         Statement::For(fs) => eval_for_statement(fs, Rc::clone(&env)),
         Statement::Expression(es) => eval_expression(&es.expression, Rc::clone(&env)),
         Statement::Function(fs) => eval_function_statement(fs, Rc::clone(&env)),
+        Statement::Test(ts) => eval_test_statement(ts, Rc::clone(&env)),
     }
 }
 
@@ -34,6 +35,9 @@ pub(super) fn eval_block_statement(block: &BlockStatement, env: EnvRef) -> Objec
         result = eval_statement(stmt, Rc::clone(&env));
 
         if let Object::ReturnValue(_) = result {
+            return result;
+        }
+        if result.is_error() {
             return result;
         }
     }
@@ -127,6 +131,13 @@ fn eval_function_statement(fs: &FunctionStatement, env: EnvRef) -> Object {
     env.borrow_mut().set(fs.name.value.clone(), func_obj);
 
     // Like 'let', defining a function doesn't produce a value
+    Object::Null
+}
+
+fn eval_test_statement(_ts: &TestStatement, _env: EnvRef) -> Object {
+    // Test blocks are only executed by the dedicated test runner mode.
+    // In regular script evaluation they are treated as no-ops so that
+    // scripts containing tests can still be run normally.
     Object::Null
 }
 

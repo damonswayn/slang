@@ -6,6 +6,7 @@ use crate::object::types::BuiltinFunction;
 pub mod monad_builtins;
 pub mod file_builtins;
 pub mod regex_builtins;
+pub mod test_builtins;
 
 // Re-export file builtins so other modules (like env) can
 // attach them under namespaces without knowing the submodule path.
@@ -43,6 +44,11 @@ const BUILTINS: &[Builtin] = &[
     Builtin { name: "file_write", func: file_builtins::builtin_write },
     Builtin { name: "file_seek", func: file_builtins::builtin_seek },
     Builtin { name: "file_close", func: file_builtins::builtin_close },
+
+    // Test helpers (available via the `Test` namespace)
+    Builtin { name: "test_assert", func: test_builtins::test_assert },
+    Builtin { name: "test_assert_eq", func: test_builtins::test_assert_eq },
+    Builtin { name: "test_assert_not_eq", func: test_builtins::test_assert_not_eq },
 ];
 
 pub fn get(name: &str) -> Option<BuiltinFunction> {

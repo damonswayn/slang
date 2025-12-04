@@ -1,5 +1,9 @@
 use std::path::PathBuf;
 use std::process::Command;
+use std::fs;
+use slang::lexer::Lexer;
+use slang::parser::Parser;
+use slang::runtime::{TestRunSummary, run_tests};
 
 /// Run a script from `test_scripts/` through the compiled `slang` binary
 /// and return its trimmed stdout.
@@ -33,6 +37,26 @@ fn run_script(script_name: &str) -> String {
     String::from_utf8_lossy(&output.stdout)
         .trim()
         .to_string()
+}
+
+fn run_tests_script(script_name: &str) -> TestRunSummary {
+    let script_path: PathBuf = [
+        env!("CARGO_MANIFEST_DIR"),
+        "test_scripts",
+        script_name,
+    ]
+    .iter()
+    .collect();
+
+    let src = fs::read_to_string(script_path)
+    .expect("failed to read file");
+
+    let lexer = Lexer::new(&src);
+    let mut parser = Parser::new(lexer);
+    let program = parser.parse_program();
+
+    let output = run_tests(&program);
+    return output;
 }
 
 #[test]
@@ -77,4 +101,12 @@ fn test_higher_order_functions_script_produces_expected_result() {
 fn test_monads_script_produces_expected_result() {
     let output = run_script("monads.sl");
     assert_eq!(output, "5\n\"failure\"\n\"Found value in list at index\"\n2\n\"Value not in list\"\nnull");
+}
+
+#[test]
+fn test_the_test_suite_script_produces_expected_result() {
+    let output: TestRunSummary = run_tests_script("testing_tests.sl");
+    assert_eq!(output.total, 4);
+    assert_eq!(output.failed, 1);
+    assert_eq!(output.output, "PASS: adds two numbers\nPASS: simple boolean assertion\nPASS: testing not equals\nFAIL: this test should fail - Assertion failed: \"This is expected to fail.\"\n\nTest results: 3/4 passed, 1 failed\n");
 }

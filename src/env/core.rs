@@ -36,6 +36,11 @@ use crate::builtins::native::file_builtins::{
     file_seek_result,
     file_close_result,
 };
+use crate::builtins::native::test_builtins::{
+    test_assert,
+    test_assert_eq,
+    test_assert_not_eq,
+};
 
 /// Reference-counted, interior-mutable environment handle
 pub type EnvRef = Rc<RefCell<Environment>>;
@@ -128,6 +133,13 @@ pub fn new_env() -> EnvRef {
         file_methods.insert("seek".to_string(), Object::Builtin(file_seek_result));
         file_methods.insert("close".to_string(), Object::Builtin(file_close_result));
         inner.set("File".to_string(), Object::Object(file_methods));
+
+        // Test = { assert, assertEq, assertNotEq }
+        let mut test_methods = HashMap::new();
+        test_methods.insert("assert".to_string(), Object::Builtin(test_assert));
+        test_methods.insert("assertEq".to_string(), Object::Builtin(test_assert_eq));
+        test_methods.insert("assertNotEq".to_string(), Object::Builtin(test_assert_not_eq));
+        inner.set("Test".to_string(), Object::Object(test_methods));
     }
 
     env

@@ -110,3 +110,9 @@ fn test_the_test_suite_script_produces_expected_result() {
     assert_eq!(output.failed, 1);
     assert_eq!(output.output, "PASS: adds two numbers\nPASS: simple boolean assertion\nPASS: testing not equals\nFAIL: this test should fail - Assertion failed: \"This is expected to fail.\"\n\nTest results: 3/4 passed, 1 failed\n");
 }
+
+#[test]
+fn test_import_namespace_script_produces_expected_result() {
+    let output = run_script("test_import_namespace.sl");
+    assert_eq!(output, "12");
+}

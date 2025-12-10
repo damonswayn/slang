@@ -1,4 +1,11 @@
+use std::fs;
+use std::path::PathBuf;
+
+use crate::env::new_env;
+use crate::evaluator::eval;
+use crate::lexer::Lexer;
 use crate::object::Object;
+use crate::parser::Parser;
 use crate::test_support::eval_input;
 
 #[test]
@@ -33,6 +40,107 @@ fn test_let_and_identifier() {
         Object::Integer(i) => assert_eq!(i, 53),
         _ => panic!("expected integer, got {:?}", obj),
     }
+}
+
+#[test]
+fn test_namespace_eval_and_call() {
+    let input = r#"
+        namespace SomeNamespace {
+            function add(a, b) { a + b; }
+        }
+
+        SomeNamespace::add(5, 7);
+    "#;
+
+    let obj = eval_input(input);
+    assert_eq!(obj, Object::Integer(12));
+}
+
+#[test]
+fn test_import_exports_namespaces_only() {
+    // Prepare a temporary module file with one namespace and a private binding.
+    let mut module_path: PathBuf = std::env::temp_dir();
+    module_path.push(format!(
+        "slang_import_test_{}.sl",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    ));
+
+    let module_source = r#"
+        namespace External {
+            function add(a, b) { a + b; }
+        }
+
+        let private = 42;
+    "#;
+    fs::write(&module_path, module_source).expect("failed to write temp module");
+
+    let program = format!(
+        r#"
+            import "{}";
+            External::add(2, 3);
+        "#,
+        module_path.display()
+    );
+
+    let result = eval_input(&program);
+    assert_eq!(result, Object::Integer(5));
+
+    // Clean up the temp file; ignore errors.
+    let _ = fs::remove_file(&module_path);
+}
+
+#[test]
+fn test_import_relative_to_module_dir() {
+    // temp root /tmp/.../rel_import_x/; module and importer in same dir
+    let mut base_dir: PathBuf = std::env::temp_dir();
+    base_dir.push(format!(
+        "slang_rel_import_{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    ));
+    fs::create_dir_all(&base_dir).expect("failed to create temp dir");
+
+    let module_path = base_dir.join("exported.sl");
+    let importer_path = base_dir.join("importer.sl");
+
+    fs::write(
+        &module_path,
+        r#"
+            namespace Exported {
+                function mul(a, b) { a * b; }
+            }
+        "#,
+    )
+    .expect("failed to write module file");
+
+    let importer_source = r#"
+        import "exported.sl";
+        Exported::mul(3, 4);
+    "#;
+    fs::write(&importer_path, importer_source).expect("failed to write importer file");
+
+    // Parse and evaluate importer with module_dir set to its parent
+    let lexer = Lexer::new(importer_source);
+    let mut parser = Parser::new(lexer);
+    let program = parser.parse_program();
+    assert!(parser.errors.is_empty(), "parser errors: {:?}", parser.errors);
+
+    let env = new_env();
+    env.borrow_mut()
+        .set_module_dir(importer_path.parent().map(|p| p.to_path_buf()));
+
+    let result = eval(&program, env);
+    assert_eq!(result, Object::Integer(12));
+
+    // Cleanup
+    let _ = fs::remove_file(&module_path);
+    let _ = fs::remove_file(&importer_path);
+    let _ = fs::remove_dir(&base_dir);
 }
 
 #[test]

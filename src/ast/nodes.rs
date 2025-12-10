@@ -29,6 +29,8 @@ pub enum Statement {
     For(ForStatement),
     Function(FunctionStatement),
     Test(TestStatement),
+    Namespace(NamespaceStatement),
+    Import(ImportStatement),
 }
 
 impl Display for Statement {
@@ -41,6 +43,8 @@ impl Display for Statement {
             Statement::Expression(es) => write!(f, "{}", es),
             Statement::Function(fs) => write!(f, "{}", fs),
             Statement::Test(ts) => write!(f, "{}", ts),
+            Statement::Namespace(ns) => write!(f, "{}", ns),
+            Statement::Import(is) => write!(f, "{}", is),
         }
     }
 }
@@ -473,6 +477,31 @@ impl Display for TestStatement {
         write!(f, "test \"{}\" {{", self.name)?;
         write!(f, "{}", self.body)?;
         write!(f, "}}")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NamespaceStatement {
+    pub name: Identifier,
+    pub body: BlockStatement,
+}
+
+impl Display for NamespaceStatement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "namespace {} {{", self.name)?;
+        write!(f, "{}", self.body)?;
+        write!(f, "}}")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImportStatement {
+    pub path: String,
+}
+
+impl Display for ImportStatement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "import \"{}\";", self.path)
     }
 }
 

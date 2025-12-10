@@ -47,6 +47,8 @@ pub enum TokenType {
     While,
     For,
     Test,
+    Namespace,
+    Import,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

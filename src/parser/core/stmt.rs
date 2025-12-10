@@ -1,6 +1,6 @@
 use crate::ast::{
-    Expression, ExpressionStatement, FunctionLiteral, Identifier, IntegerLiteral, LetStatement,
-    ReturnStatement, Statement, WhileStatement,
+    Expression, ExpressionStatement, FunctionLiteral, Identifier, ImportStatement, IntegerLiteral,
+    LetStatement, NamespaceStatement, ReturnStatement, Statement, WhileStatement,
 };
 use crate::ast::nodes::{ForStatement, FunctionStatement, TestStatement};
 use crate::debug_log;
@@ -46,6 +46,14 @@ impl Parser {
                     debug_log!("  -> parse_expression_statement (for function literal) returned: {:?}", stmt);
                     stmt.map(Statement::Expression)
                 }
+            }
+            TokenType::Namespace => {
+                debug_log!("  -> parsing Namespace statement");
+                self.parse_namespace_statement().map(Statement::Namespace)
+            }
+            TokenType::Import => {
+                debug_log!("  -> parsing Import statement");
+                self.parse_import_statement().map(Statement::Import)
             }
             TokenType::Test => {
                 debug_log!("  -> parsing Test statement");
@@ -114,6 +122,39 @@ impl Parser {
         let stmt = ExpressionStatement { expression: expr };
         debug_log!("parse_expression_statement: EXIT with {:?}", stmt);
         Some(stmt)
+    }
+
+    fn parse_namespace_statement(&mut self) -> Option<NamespaceStatement> {
+        if !self.expect_peek(TokenType::Ident) {
+            return None;
+        }
+
+        let name = Identifier {
+            value: self.cur_token.literal.clone(),
+        };
+
+        if !self.expect_peek(TokenType::Lbrace) {
+            return None;
+        }
+
+        let body = self.parse_block_statement()?;
+
+        Some(NamespaceStatement { name, body })
+    }
+
+    fn parse_import_statement(&mut self) -> Option<ImportStatement> {
+        if !self.expect_peek(TokenType::String) {
+            return None;
+        }
+
+        let path = self.cur_token.literal.clone();
+
+        // optional trailing semicolon
+        if self.peek_token.token_type == TokenType::Semicolon {
+            self.next_token();
+        }
+
+        Some(ImportStatement { path })
     }
 
     fn parse_return_statement(&mut self) -> Option<ReturnStatement> {

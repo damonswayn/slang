@@ -10,6 +10,8 @@ pub use nodes::{
     InfixOp,
     LetStatement,
     ExpressionStatement,
+    ImportStatement,
+    NamespaceStatement,
     BlockStatement,
     IfExpression,
     PrefixExpression,

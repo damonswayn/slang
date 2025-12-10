@@ -53,4 +53,46 @@ fn test_operator_precedence_parsing() {
     }
 }
 
+#[test]
+fn test_namespace_statement_parsing() {
+    let input = r#"
+        namespace Utils {
+            let x = 1;
+            function add(a, b) { a + b; }
+        }
+    "#;
+
+    let l = Lexer::new(input);
+    let mut p = Parser::new(l);
+    let program = p.parse_program();
+    check_errors(&p);
+
+    assert_eq!(program.statements.len(), 1);
+    match &program.statements[0] {
+        Statement::Namespace(ns) => {
+            assert_eq!(ns.name.value, "Utils");
+            assert_eq!(ns.body.statements.len(), 2);
+        }
+        other => panic!("expected Namespace statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_import_statement_parsing() {
+    let input = r#"
+        import "foo.sl";
+    "#;
+
+    let l = Lexer::new(input);
+    let mut p = Parser::new(l);
+    let program = p.parse_program();
+    check_errors(&p);
+
+    assert_eq!(program.statements.len(), 1);
+    match &program.statements[0] {
+        Statement::Import(is) => assert_eq!(is.path, "foo.sl"),
+        other => panic!("expected Import statement, got {:?}", other),
+    }
+}
+
 

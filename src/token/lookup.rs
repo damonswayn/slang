@@ -20,6 +20,8 @@ pub fn lookup_ident(ident: &str) -> TokenType {
         "while" => TokenType::While,
         "for" => TokenType::For,
         "test" => TokenType::Test,
+        "namespace" => TokenType::Namespace,
+        "import" => TokenType::Import,
         _ => TokenType::Ident
     }
 }

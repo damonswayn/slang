@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::object::Object;
@@ -83,6 +84,7 @@ pub type EnvRef = Rc<RefCell<Environment>>;
 pub struct Environment {
     store: HashMap<String, Object>,
     outer: Option<EnvRef>,
+    module_dir: Option<PathBuf>,
 }
 
 impl Environment {
@@ -90,13 +92,16 @@ impl Environment {
         Rc::new(RefCell::new(Environment {
             store: HashMap::new(),
             outer: None,
+            module_dir: None,
         }))
     }
 
     pub fn new_enclosed(outer: EnvRef) -> EnvRef {
+        let module_dir = outer.borrow().module_dir.clone();
         Rc::new(RefCell::new(Environment {
             store: HashMap::new(),
             outer: Some(outer),
+            module_dir,
         }))
     }
 
@@ -112,6 +117,18 @@ impl Environment {
 
     pub fn set(&mut self, name: String, value: Object) {
         self.store.insert(name, value);
+    }
+
+    pub fn snapshot(&self) -> HashMap<String, Object> {
+        self.store.clone()
+    }
+
+    pub fn module_dir(&self) -> Option<PathBuf> {
+        self.module_dir.clone()
+    }
+
+    pub fn set_module_dir(&mut self, dir: Option<PathBuf>) {
+        self.module_dir = dir;
     }
 }
 

@@ -246,6 +246,30 @@ let c1 = regexMatch("abc123", "([a-z]+)(\d+)"); // Some(["abc123", "abc", "123"]
 let c2 = regexMatch("no-digits", "(\d+)"); // None()
 ```
 
+### Namespaces and imports
+
+```
+namespace SomeNamespace {
+    function add(a, b) {
+        a + b;
+    }
+}
+
+SomeNamespace::add(5, 7); // 12
+```
+
+Code inside a namespace is exported as a single object. Top-level code outside
+any namespace remains private to the file. You can import another file with a
+string path (absolute or relative to the current working directory):
+
+```
+import "lib/math.sl";
+Math::sqrt(9);
+```
+
+If multiple files declare the same namespace, their members are merged; later
+imports override earlier definitions of the same member name.
+
 ### Monadic results for file operations
 
 ```
@@ -295,6 +319,10 @@ environment whenever you run a script or the REPL.
     - `Array::map(arr, fn)` – returns a new array with `fn(element)` applied to each element.
     - `Array::filter(arr, fn)` – returns a new array containing only elements where `fn(element)` is `true`.
     - `Array::reduce(arr, initial, fn)` – folds the array from left to right, calling `fn(acc, element)`.
+    - `Array::find(arr, fn)` – returns `Option::Some(element)` for the first element where `fn(element)` is `true`, or `Option::None()` if none match.
+    - `Array::some(arr, fn)` – returns `true` if any element matches the predicate.
+    - `Array::every(arr, fn)` – returns `true` if all elements match the predicate.
+    - `Array::flatMap(arr, fn)` – maps each element to an array and concatenates the results.
   - These complement the lower-level builtins like `len`, `first`, `last`, `rest`, and `push`.
 
 - **Regex**
@@ -313,6 +341,26 @@ environment whenever you run a script or the REPL.
     - `File::write(file, string)` – returns `Result::Ok(unit)` or `Result::Err(error)`.
     - `File::seek(file, offset, origin)` – returns `Result::Ok(unit)` or `Result::Err(error)`.
     - `File::close(file)` – returns `Result::Ok(unit)` or `Result::Err(error)`.
+
+- **Math**
+  - Numeric helpers for common math operations:
+    - `Math::abs(x)` – absolute value.
+    - `Math::floor(x)`, `Math::ceil(x)`, `Math::round(x)` – integer rounding.
+    - `Math::min(a, b)`, `Math::max(a, b)` – minimum/maximum of two numbers (ints and floats are supported, with coercion).
+    - `Math::pow(base, exp)` – floating-point power.
+    - `Math::sin(x)`, `Math::cos(x)`, `Math::tan(x)`, `Math::sqrt(x)` – basic trig and square root (return floats).
+
+- **String**
+  - String utilities:
+    - `String::trim(s)` – trims leading and trailing whitespace.
+    - `String::toUpper(s)` / `String::toLower(s)` – case conversion.
+    - `String::split(s, sep)` – splits into an array of strings (`sep == ""` splits into characters).
+    - `String::join(arr, sep)` – joins an array of strings with a separator.
+
+- **Json**
+  - JSON interop helpers:
+    - `Json::parse(s)` – parses a JSON string into Slang values, returning `Result::Ok(value)` or `Result::Err(errorString)`.
+    - `Json::stringify(value)` – converts a Slang value back into a JSON string, returning `Result::Ok(string)` or `Result::Err(errorString)`.
 
 - **Test**
   - The `Test` namespace provides basic assertion helpers designed for writing test scripts:
@@ -333,3 +381,21 @@ as top-level builtins:
 Over time, more functionality may move into namespaced modules for better
 organization, but the existing free functions will continue to work for
 backwards compatibility.
+
+### Idiomatic stdlib usage examples
+
+```slang
+// Array + Option + Result
+let xs = [1, 2, 3, 4, 5];
+let firstEven = Array::find(xs, fn(x) { x % 2 == 0; }); // Option::Some(2)
+
+// String helpers
+let raw = "  hello world  ";
+let cleaned = String::toUpper(String::trim(raw)); // "HELLO WORLD"
+
+// Math + Json
+let v = { x: 3, y: 4, len: Math::sqrt(3 * 3 + 4 * 4) };
+let json = Json::stringify(v);
+let jsonStr = Result::unwrapOr(json, "ERR");
+print(jsonStr); // {"x":3,"y":4,"len":5}
+```

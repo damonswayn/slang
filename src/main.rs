@@ -33,6 +33,8 @@ fn run_script_mode(env: EnvRef, args: &Vec<String>) {
     }
 
     let file_content = std::fs::read_to_string(file_path).expect("failed to read file");
+    env.borrow_mut()
+        .set_module_dir(file_path.parent().map(|p| p.to_path_buf()));
     let lexer = Lexer::new(&file_content);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
@@ -54,6 +56,9 @@ fn run_test_mode(_base_env: EnvRef, args: &Vec<String>) {
     }
 
     let file_content = std::fs::read_to_string(file_path).expect("failed to read file");
+    _base_env
+        .borrow_mut()
+        .set_module_dir(file_path.parent().map(|p| p.to_path_buf()));
     let lexer = Lexer::new(&file_content);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();

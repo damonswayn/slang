@@ -1,11 +1,17 @@
+use std::fs;
+use std::path::Path;
 use std::rc::Rc;
 
-use crate::ast::nodes::{ForStatement, FunctionStatement, ReturnStatement, TestStatement};
-use crate::ast::{
-    BlockStatement, IfExpression, LetStatement, Statement, WhileStatement,
+use crate::ast::nodes::{
+    ForStatement, FunctionStatement, NamespaceStatement, ReturnStatement, TestStatement,
 };
-use crate::env::EnvRef;
+use crate::ast::{
+    BlockStatement, IfExpression, ImportStatement, LetStatement, Statement, WhileStatement,
+};
+use crate::env::{EnvRef, new_enclosed_env, new_env};
+use crate::lexer::Lexer;
 use crate::object::Object;
+use crate::parser::Parser;
 
 use super::expr::{eval_expression, is_truthy};
 
@@ -18,6 +24,8 @@ pub(super) fn eval_statement(stmt: &Statement, env: EnvRef) -> Object {
         Statement::Expression(es) => eval_expression(&es.expression, Rc::clone(&env)),
         Statement::Function(fs) => eval_function_statement(fs, Rc::clone(&env)),
         Statement::Test(ts) => eval_test_statement(ts, Rc::clone(&env)),
+        Statement::Namespace(ns) => eval_namespace_statement(ns, Rc::clone(&env)),
+        Statement::Import(is) => eval_import_statement(is, Rc::clone(&env)),
     }
 }
 
@@ -139,6 +147,113 @@ fn eval_test_statement(_ts: &TestStatement, _env: EnvRef) -> Object {
     // In regular script evaluation they are treated as no-ops so that
     // scripts containing tests can still be run normally.
     Object::Null
+}
+
+fn eval_namespace_statement(ns: &NamespaceStatement, env: EnvRef) -> Object {
+    // Evaluate within an enclosed environment to avoid leaking locals.
+    let ns_env = new_enclosed_env(Rc::clone(&env));
+    let result = eval_block_statement(&ns.body, Rc::clone(&ns_env));
+
+    if result.is_error() {
+        return result;
+    }
+    if let Object::ReturnValue(inner) = result {
+        return *inner;
+    }
+
+    let exported = ns_env.borrow().snapshot();
+    env.borrow_mut()
+        .set(ns.name.value.clone(), Object::Object(exported));
+
+    Object::Null
+}
+
+fn eval_import_statement(is: &ImportStatement, env: EnvRef) -> Object {
+    let path = Path::new(&is.path);
+    let resolved = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        let base_dir = env
+            .borrow()
+            .module_dir()
+            .or_else(|| std::env::current_dir().ok());
+        match base_dir {
+            Some(base) => base.join(path),
+            None => return Object::error("unable to resolve import: no base directory"),
+        }
+    };
+
+    let source = match fs::read_to_string(&resolved) {
+        Ok(s) => s,
+        Err(err) => {
+            return Object::error(format!(
+                "failed to read import '{}': {}",
+                resolved.display(),
+                err
+            ))
+        }
+    };
+
+    let lexer = Lexer::new(&source);
+    let mut parser = Parser::new(lexer);
+    let program = parser.parse_program();
+
+    if !parser.errors.is_empty() {
+        return Object::error(format!(
+            "parse errors in import '{}': {:?}",
+            resolved.display(),
+            parser.errors
+        ));
+    }
+
+    // Evaluate imported file in a fresh environment; only namespaces are exported.
+    let module_env = new_env();
+    let parent_dir = resolved.parent().map(|p| p.to_path_buf());
+    module_env.borrow_mut().set_module_dir(parent_dir);
+    let eval_result = crate::evaluator::eval(&program, Rc::clone(&module_env));
+    if eval_result.is_error() {
+        return eval_result;
+    }
+
+    let module_store = module_env.borrow().snapshot();
+    for (name, value) in module_store {
+        if is_builtin_namespace(&name) {
+            continue;
+        }
+
+        if let Object::Object(ns_obj) = value {
+            merge_namespace_into_env(&name, ns_obj, Rc::clone(&env));
+        }
+    }
+
+    Object::Null
+}
+
+fn merge_namespace_into_env(
+    name: &str,
+    ns_obj: std::collections::HashMap<String, Object>,
+    env: EnvRef,
+) {
+    let mut env_mut = env.borrow_mut();
+    match env_mut.get(name) {
+        Some(Object::Object(existing)) => {
+            let mut merged = existing.clone();
+            for (k, v) in ns_obj {
+                merged.insert(k, v);
+            }
+            env_mut.set(name.to_string(), Object::Object(merged));
+        }
+        _ => {
+            env_mut.set(name.to_string(), Object::Object(ns_obj));
+        }
+    }
+}
+
+fn is_builtin_namespace(name: &str) -> bool {
+    matches!(
+        name,
+        "Option" | "Result" | "Regex" | "File" | "Array" | "Math" | "String" | "Json" | "Test"
+    )
 }
 
 

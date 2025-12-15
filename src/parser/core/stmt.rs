@@ -2,7 +2,7 @@ use crate::ast::{
     Expression, ExpressionStatement, FunctionLiteral, Identifier, ImportStatement, IntegerLiteral,
     LetStatement, NamespaceStatement, ReturnStatement, Statement, WhileStatement,
 };
-use crate::ast::nodes::{ForStatement, FunctionStatement, TestStatement};
+use crate::ast::nodes::{ForStatement, FunctionStatement, PublishExpression, TestStatement};
 use crate::debug_log;
 use crate::token::TokenType;
 
@@ -11,6 +11,11 @@ use super::{Parser, Precedence};
 impl Parser {
     pub(super) fn parse_statement(&mut self) -> Option<Statement> {
         match self.cur_token.token_type {
+            TokenType::Lparen if self.peek_token.token_type == TokenType::Colon => {
+                debug_log!("  -> parsing tagged Function statement");
+                self.parse_tagged_function_statement()
+                    .map(Statement::Function)
+            }
             TokenType::Let => {
                 debug_log!("  -> parsing Let statement");
                 self.parse_let_statement().map(Statement::Let)
@@ -108,6 +113,15 @@ impl Parser {
                 return None;
             }
         };
+
+        // If we see a comma- or arrow-led tail, treat this as a publish expression.
+        if matches!(self.peek_token.token_type, TokenType::Comma | TokenType::Arrow) {
+            if let Some(pub_expr) = self.parse_publish_expression(expr.clone()) {
+                let stmt = ExpressionStatement { expression: pub_expr };
+                debug_log!("parse_expression_statement: EXIT with publish {:?}", stmt);
+                return Some(stmt);
+            }
+        }
 
         debug_log!(
             "parse_expression_statement: after parse_expression, cur_token = {:?}, peek_token = {:?}",
@@ -285,6 +299,10 @@ impl Parser {
     }
 
     fn parse_function_statement(&mut self) -> Option<FunctionStatement> {
+        self.parse_function_statement_with_tags(Vec::new())
+    }
+
+    fn parse_function_statement_with_tags(&mut self, tags: Vec<String>) -> Option<FunctionStatement> {
         if !self.expect_peek(TokenType::Ident) {
             return None;
         }
@@ -308,6 +326,7 @@ impl Parser {
         Some(FunctionStatement {
             name,
             literal: FunctionLiteral { params, body },
+            tags,
         })
     }
 
@@ -327,6 +346,101 @@ impl Parser {
         let body = self.parse_block_statement()?;
 
         Some(TestStatement { name, body })
+    }
+
+    fn parse_tagged_function_statement(&mut self) -> Option<FunctionStatement> {
+        let tags = self.parse_tag_group_from_parens()?;
+
+        if !self.expect_peek(TokenType::Function) {
+            return None;
+        }
+
+        self.parse_function_statement_with_tags(tags)
+    }
+
+    fn parse_tag_group_from_parens(&mut self) -> Option<Vec<String>> {
+        // current token is '(' and peek is ':'
+        let mut tags = Vec::new();
+
+        loop {
+            if !self.expect_peek(TokenType::Colon) {
+                return None;
+            }
+            if !self.expect_peek(TokenType::Ident) {
+                return None;
+            }
+            tags.push(self.cur_token.literal.clone());
+
+        match self.peek_token.token_type.clone() {
+                TokenType::Comma => {
+                    self.next_token(); // consume comma
+                    continue;
+                }
+                TokenType::Rparen => {
+                    self.next_token(); // consume ')'
+                    break;
+                }
+                other => {
+                    self.errors.push(format!(
+                        "expected ',' or ')' after tag, got {:?}",
+                        other
+                    ));
+                    return None;
+                }
+            }
+        }
+
+        Some(tags)
+    }
+
+    fn parse_publish_expression(&mut self, first_expr: Expression) -> Option<Expression> {
+        let mut args = vec![first_expr];
+
+        while self.peek_token.token_type == TokenType::Comma {
+            self.next_token(); // move to ','
+            self.next_token(); // move to start of next expression
+            args.push(self.parse_expression(Precedence::Lowest)?);
+        }
+
+        if !self.expect_peek(TokenType::Arrow) {
+            return None;
+        }
+
+        // move to first token after '->'
+        self.next_token();
+        let mut stages = Vec::new();
+        let first_tags = self.parse_tags()?;
+        stages.push(first_tags);
+
+        while self.peek_token.token_type == TokenType::Arrow {
+            self.next_token(); // move to '->'
+            self.next_token(); // move to start of next tag group
+            let tags = self.parse_tags()?;
+            stages.push(tags);
+        }
+
+        Some(Expression::Publish(Box::new(PublishExpression { args, stages })))
+    }
+
+    fn parse_tags(&mut self) -> Option<Vec<String>> {
+        match self.cur_token.token_type {
+            TokenType::Colon => self.parse_single_tag(),
+            TokenType::Lparen => self.parse_tag_group_from_parens(),
+            _ => {
+                self.errors.push(format!(
+                    "expected tag list starting with ':' or '(', got {:?}",
+                    self.cur_token.token_type
+                ));
+                None
+            }
+        }
+    }
+
+    fn parse_single_tag(&mut self) -> Option<Vec<String>> {
+        if !self.expect_peek(TokenType::Ident) {
+            return None;
+        }
+        Some(vec![self.cur_token.literal.clone()])
     }
 }
 

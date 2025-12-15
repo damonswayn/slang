@@ -8,7 +8,7 @@ use crate::ast::nodes::{
 use crate::ast::{
     BlockStatement, IfExpression, ImportStatement, LetStatement, Statement, WhileStatement,
 };
-use crate::env::{EnvRef, new_enclosed_env, new_env};
+use crate::env::{EnvRef, new_enclosed_env, new_env, register_subscription};
 use crate::lexer::Lexer;
 use crate::object::Object;
 use crate::parser::Parser;
@@ -136,7 +136,12 @@ fn eval_function_statement(fs: &FunctionStatement, env: EnvRef) -> Object {
         env: Rc::clone(&env), // capture defining env for closures/recursion
     };
 
-    env.borrow_mut().set(fs.name.value.clone(), func_obj);
+    env.borrow_mut().set(fs.name.value.clone(), func_obj.clone());
+
+    // Register function under any declared pub/sub tags.
+    for tag in &fs.tags {
+        register_subscription(tag, func_obj.clone(), Rc::clone(&env));
+    }
 
     // Like 'let', defining a function doesn't produce a value
     Object::Null

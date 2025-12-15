@@ -162,6 +162,7 @@ pub enum Expression {
     IndexExpression(Box<IndexExpression>),
     ObjectLiteral(ObjectLiteral),
     PropertyAccess(Box<PropertyAccess>),
+    Publish(Box<PublishExpression>),
 }
 
 impl Display for Expression {
@@ -182,6 +183,7 @@ impl Display for Expression {
             Expression::IndexExpression(ie) => write!(f, "{}", ie),
             Expression::ObjectLiteral(ol) => write!(f, "{}", ol),
             Expression::PropertyAccess(pa) => write!(f, "{}", pa),
+            Expression::Publish(pubexpr) => write!(f, "{}", pubexpr),
         }
     }
 }
@@ -451,10 +453,22 @@ impl Display for FunctionLiteral {
 pub struct FunctionStatement {
     pub name: Identifier,
     pub literal: FunctionLiteral,
+    pub tags: Vec<String>,
 }
 
 impl Display for FunctionStatement {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if !self.tags.is_empty() {
+            write!(f, "(")?;
+            for (i, tag) in self.tags.iter().enumerate() {
+                if i > 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, ":{}", tag)?;
+            }
+            write!(f, ")\n")?;
+        }
+
         write!(f, "function {}(", self.name)?;
         for (i, p) in self.literal.params.iter().enumerate() {
             if i > 0 { write!(f, ", ")?; }
@@ -521,6 +535,45 @@ impl Display for CallExpression {
             write!(f, "{}", arg)?;
         }
         write!(f, ")")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PublishExpression {
+    pub args: Vec<Expression>,
+    /// Each inner vec is a tag group for a publish stage in the chain.
+    pub stages: Vec<Vec<String>>,
+}
+
+impl Display for PublishExpression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        for (i, arg) in self.args.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", arg)?;
+        }
+
+        for (stage_idx, tags) in self.stages.iter().enumerate() {
+            write!(f, " -> ")?;
+            let render_group = tags.len() != 1 || stage_idx > 0;
+            if render_group && tags.len() > 1 {
+                write!(f, "(")?;
+            }
+
+            for (i, tag) in tags.iter().enumerate() {
+                if i > 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, ":{}", tag)?;
+            }
+
+            if render_group && tags.len() > 1 {
+                write!(f, ")")?;
+            }
+        }
+
+        Ok(())
     }
 }
 

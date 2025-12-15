@@ -75,6 +75,12 @@ use crate::builtins::native::json_builtins::{
     json_parse,
     json_stringify,
 };
+use crate::builtins::native::type_builtins::{
+    type_int,
+    type_float,
+    type_str,
+    type_bool,
+};
 
 /// Reference-counted, interior-mutable environment handle
 pub type EnvRef = Rc<RefCell<Environment>>;
@@ -85,6 +91,7 @@ pub struct Environment {
     store: HashMap<String, Object>,
     outer: Option<EnvRef>,
     module_dir: Option<PathBuf>,
+    subscriptions: HashMap<String, Vec<Object>>,
 }
 
 impl Environment {
@@ -93,6 +100,7 @@ impl Environment {
             store: HashMap::new(),
             outer: None,
             module_dir: None,
+            subscriptions: HashMap::new(),
         }))
     }
 
@@ -102,6 +110,7 @@ impl Environment {
             store: HashMap::new(),
             outer: Some(outer),
             module_dir,
+            subscriptions: HashMap::new(),
         }))
     }
 
@@ -129,6 +138,14 @@ impl Environment {
 
     pub fn set_module_dir(&mut self, dir: Option<PathBuf>) {
         self.module_dir = dir;
+    }
+
+    pub fn subscriptions(&self) -> &HashMap<String, Vec<Object>> {
+        &self.subscriptions
+    }
+
+    pub fn subscriptions_mut(&mut self) -> &mut HashMap<String, Vec<Object>> {
+        &mut self.subscriptions
     }
 }
 
@@ -166,6 +183,14 @@ pub fn new_env() -> EnvRef {
         result_methods.insert("bind".to_string(), Object::Builtin(result_bind));
         result_methods.insert("fmap".to_string(), Object::Builtin(result_fmap));
         inner.set("Result".to_string(), Object::Object(result_methods));
+
+        // Type = { int, float, str, bool } – Result-based type casts
+        let mut type_methods = HashMap::new();
+        type_methods.insert("int".to_string(), Object::Builtin(type_int));
+        type_methods.insert("float".to_string(), Object::Builtin(type_float));
+        type_methods.insert("str".to_string(), Object::Builtin(type_str));
+        type_methods.insert("bool".to_string(), Object::Builtin(type_bool));
+        inner.set("Type".to_string(), Object::Object(type_methods));
 
         // Regex = { isMatch, find, replace, match }
         let mut regex_methods = HashMap::new();
@@ -240,6 +265,40 @@ pub fn new_env() -> EnvRef {
 #[inline]
 pub fn new_enclosed_env(outer: EnvRef) -> EnvRef {
     Environment::new_enclosed(outer)
+}
+
+fn root_env(env: EnvRef) -> EnvRef {
+    let mut current = Rc::clone(&env);
+    loop {
+        let next = {
+            let borrow = current.borrow();
+            borrow.outer.clone()
+        };
+
+        match next {
+            Some(next_env) => current = next_env,
+            None => break,
+        }
+    }
+    current
+}
+
+pub fn register_subscription(tag: &str, func: Object, env: EnvRef) {
+    let root = root_env(env);
+    root.borrow_mut()
+        .subscriptions_mut()
+        .entry(tag.to_string())
+        .or_default()
+        .push(func);
+}
+
+pub fn subscribers_for_tag(tag: &str, env: EnvRef) -> Vec<Object> {
+    let root = root_env(env);
+    root.borrow()
+        .subscriptions()
+        .get(tag)
+        .cloned()
+        .unwrap_or_default()
 }
 
 

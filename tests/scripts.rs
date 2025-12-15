@@ -116,3 +116,18 @@ fn test_import_namespace_script_produces_expected_result() {
     let output = run_script("test_import_namespace.sl");
     assert_eq!(output, "12");
 }
+
+#[test]
+fn type_casting_script_produces_expected_result() {
+    let output = run_script("type_casting.sl");
+    assert_eq!(
+        output,
+        "42\n3.14\n\"123\"\nfalse\ntrue\ntrue\nfalse\n2.5\n\"type error\"\n\"Some(5)\"\nnull"
+    );
+}
+
+#[test]
+fn pubsub_script_invokes_tagged_functions() {
+    let output = run_script("pubsub.sl");
+    assert_eq!(output, "12\n35\n144\n144\nnull");
+}

@@ -23,4 +23,5 @@ pub use nodes::{
     StringLiteral,
     ArrayLiteral,
     IndexExpression,
+    PublishExpression,
 };

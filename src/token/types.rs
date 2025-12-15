@@ -39,6 +39,7 @@ pub enum TokenType {
     Semicolon,
     Comma,
     Colon,
+    Arrow,
 
     Let,
     True, False,

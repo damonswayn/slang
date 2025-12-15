@@ -106,7 +106,10 @@ impl Lexer {
                 }
             }
             Some('-') => {
-                if self.peek_char() == Some('-') {
+                if self.peek_char() == Some('>') {
+                    self.read_char();
+                    Token::new(TokenType::Arrow, String::from("->"))
+                } else if self.peek_char() == Some('-') {
                     self.read_char();
                     Token::new(TokenType::MinusMinus, String::from("--"))
                 } else {

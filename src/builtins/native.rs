@@ -11,6 +11,7 @@ pub mod array_builtins;
 pub mod math_builtins;
 pub mod string_builtins;
 pub mod json_builtins;
+pub mod type_builtins;
 
 // Re-export file builtins so other modules (like env) can
 // attach them under namespaces without knowing the submodule path.
@@ -35,6 +36,10 @@ const BUILTINS: &[Builtin] = &[
     Builtin { name: "push",  func: builtin_push },
     Builtin { name: "print", func: builtin_print },
     Builtin { name: "debug", func: builtin_debug },
+    Builtin { name: "int", func: type_builtins::builtin_int },
+    Builtin { name: "float", func: type_builtins::builtin_float },
+    Builtin { name: "str", func: type_builtins::builtin_str },
+    Builtin { name: "bool", func: type_builtins::builtin_bool },
 
     // Regex builtins
     Builtin { name: "regexIsMatch", func: regex_builtins::builtin_regex_is_match },

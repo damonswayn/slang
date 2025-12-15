@@ -2,14 +2,14 @@ use std::rc::Rc;
 
 use crate::ast::nodes::{
     InfixOp, ObjectLiteral, PrefixExpression, PrefixOp, PropertyAccess, PostfixExpression,
-    PostfixOp,
+    PostfixOp, PublishExpression,
 };
 use crate::ast::{
     ArrayLiteral, CallExpression, Expression, FunctionLiteral, Identifier, IndexExpression,
     InfixExpression,
 };
 use crate::{builtins, debug_log};
-use crate::env::{EnvRef, new_enclosed_env};
+use crate::env::{EnvRef, new_enclosed_env, subscribers_for_tag};
 use crate::object::Object;
 
 use super::stmt::eval_if_expression;
@@ -32,6 +32,7 @@ pub(super) fn eval_expression(expr: &Expression, env: EnvRef) -> Object {
         Expression::IndexExpression(ix) => eval_index_expression(ix, env),
         Expression::ObjectLiteral(ol) => eval_object_literal(ol, env),
         Expression::PropertyAccess(pa) => eval_property_access(pa, env),
+        Expression::Publish(pubexpr) => eval_publish_expression(pubexpr, env),
     }
 }
 
@@ -472,6 +473,90 @@ fn eval_property_access(pa: &PropertyAccess, env: EnvRef) -> Object {
             "property access not supported on value: {:?}",
             other
         )),
+    }
+}
+
+fn eval_publish_expression(pubexpr: &PublishExpression, env: EnvRef) -> Object {
+    let mut current_values = Vec::with_capacity(pubexpr.args.len());
+    for arg in &pubexpr.args {
+        let value = eval_expression(arg, Rc::clone(&env));
+        if value.is_error() {
+            return value;
+        }
+        current_values.push(value);
+    }
+
+    for tag_group in &pubexpr.stages {
+        let filtered: Vec<Object> = current_values
+            .into_iter()
+            .filter(|v| !matches!(v, Object::Null))
+            .collect();
+
+        let mut next_values = Vec::new();
+
+        for tag in tag_group {
+            let subscribers = subscribers_for_tag(tag, Rc::clone(&env));
+            for func in subscribers {
+                let args = match build_args_for_subscriber(&filtered, &func) {
+                    Ok(a) => a,
+                    Err(msg) => return Object::error(msg),
+                };
+
+                let result =
+                    apply_function_with_this(func, args, None, Rc::clone(&env));
+                if result.is_error() {
+                    return result;
+                }
+                next_values.push(result);
+            }
+        }
+
+        current_values = next_values;
+    }
+
+    Object::Null
+}
+
+fn build_args_for_subscriber(values: &[Object], func: &Object) -> Result<Vec<Object>, String> {
+    let filtered: Vec<Object> = values
+        .iter()
+        .filter(|v| !matches!(v, Object::Null))
+        .cloned()
+        .collect();
+
+    match func {
+        Object::Function { params, .. } => {
+            let n = params.len();
+            if n == 0 {
+                return Ok(vec![]);
+            }
+
+            if n == 1 {
+                return Ok(vec![Object::Array(filtered)]);
+            }
+
+            let mut args = Vec::with_capacity(n);
+
+            if filtered.len() <= n {
+                for i in 0..n {
+                    if i < filtered.len() {
+                        args.push(filtered[i].clone());
+                    } else {
+                        args.push(Object::Null);
+                    }
+                }
+            } else {
+                for i in 0..n - 1 {
+                    args.push(filtered[i].clone());
+                }
+                let rest: Vec<Object> = filtered[n - 1..].to_vec();
+                args.push(Object::Array(rest));
+            }
+
+            Ok(args)
+        }
+        Object::Builtin(_) => Ok(filtered),
+        other => Err(format!("subscriber for tag is not callable: {:?}", other)),
     }
 }
 

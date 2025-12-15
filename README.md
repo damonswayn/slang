@@ -231,6 +231,21 @@ if (Option::isNone(optB)) {
 }
 ```
 
+### Type casting
+
+```
+int("42");          // 42 (Integer)
+float("3.14");      // 3.14 (Float)
+str(123);           // "123" (String)
+bool(0);            // false
+bool("true");       // true
+
+// Result-based variants
+let r1 = Type::int("99");     // Result::Ok(99)
+let r2 = Type::float("oops"); // Result::Err("float(): could not parse float from \"oops\"")
+if (Result::isErr(r2)) { print("bad cast"); }
+```
+
 ### Regex
 
 ```
@@ -269,6 +284,40 @@ Math::sqrt(9);
 
 If multiple files declare the same namespace, their members are merged; later
 imports override earlier definitions of the same member name.
+
+### Built-in pub/sub tags and chaining
+
+You can tag functions and publish values to all subscribers of a tag. Tags are
+declared before a function with `(:TagOne, :TagTwo)`; publishing uses `-> :Tag`.
+Publishes can be chained; each stage receives the return values from the previous
+stage (with `null` values dropped).
+
+Argument shaping per subscriber:
+- 0 params → no arguments passed
+- 1 param  → a single array of all non-null values from the previous stage
+- >1 params → values are packed positionally; if more values than params, the last
+  param receives the remaining values as an array; if fewer, missing params get `null`.
+
+Example:
+```
+(:Square)
+function square(values) {           // one-arg subscriber gets an array
+    let n = values[0];
+    let s = n * n;
+    print(s);
+    return s;
+}
+
+(:Print)
+function output(values) {           // also one-arg -> array
+    print(values[0]);
+}
+
+let a = 5;
+let b = 7;
+
+a + b -> :Square -> :Print          // prints 144 twice in the sample test
+```
 
 ### Monadic results for file operations
 
@@ -313,6 +362,19 @@ environment whenever you run a script or the REPL.
     - `Result::unwrapOr(res, default)` – returns inner value on `Ok`, default on `Err`.
     - `Result::map(res, fn)` / `Result::fmap(res, fn)` – transform the success value.
     - `Result::andThen(res, fn)` / `Result::bind(res, fn)` – monadic bind; `fn` should return a `Result`.
+
+- **Type**
+  - Safe, Result-wrapped casts:
+    - `Type::int(value)` → `Result::Ok(Integer)` or `Result::Err("...")`
+    - `Type::float(value)` → `Result::Ok(Float)` or `Result::Err("...")`
+    - `Type::str(value)` → `Result::Ok(String)` (never errors)
+    - `Type::bool(value)` → `Result::Ok(Boolean)` or `Result::Err("...")`
+  - Accepted inputs:
+    - `int`: integers, finite floats (truncates), booleans (1/0), strings parsable as i64.
+    - `float`: floats, integers, booleans (1/0), strings parsable as f64.
+    - `str`: any value via `to_string`.
+    - `bool`: booleans, integers/floats (non-zero => true), strings `"true"/"false"/"1"/"0"`, `null` → false.
+  - Free-function aliases `int(value)`, `float(value)`, `str(value)`, `bool(value)` perform the same conversions but raise an error instead of returning `Result`.
 
 - **Array**
   - Provides higher-order helpers for working with arrays:

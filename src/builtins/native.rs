@@ -12,6 +12,11 @@ pub mod math_builtins;
 pub mod string_builtins;
 pub mod json_builtins;
 pub mod type_builtins;
+pub mod object_builtins;
+pub mod time_builtins;
+pub mod system_builtins;
+pub mod http_builtins;
+pub mod fn_builtins;
 
 // Re-export file builtins so other modules (like env) can
 // attach them under namespaces without knowing the submodule path.

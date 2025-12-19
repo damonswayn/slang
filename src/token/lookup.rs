@@ -8,6 +8,12 @@ pub fn lookup_ident(ident: &str) -> TokenType {
         return TokenType::Ident;
     }
 
+    // Allow capitalized `Fn` as an identifier for the function utilities
+    // namespace, while keeping lowercase `fn` as the function keyword.
+    if ident == "Fn" {
+        return TokenType::Ident;
+    }
+
     match ident.to_lowercase().as_str() {
         "let" => TokenType::Let,
         "true" => TokenType::True,

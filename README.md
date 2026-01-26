@@ -164,6 +164,184 @@ print(obj.inner.sum());
 // outputs 6
 ```
 
+### Classes
+
+Slang supports class definitions with constructors and methods. Classes provide a cleaner
+syntax for creating objects with shared behavior.
+
+#### Basic class definition
+
+```
+class Calculator {
+    function add(a, b) { a + b; }
+    function multiply(a, b) { a * b; }
+}
+
+let calc = new Calculator();
+print(calc.add(2, 3));      // 5
+print(calc.multiply(4, 5)); // 20
+```
+
+#### Constructors
+
+The special `construct` method is called when you create a new instance with `new`.
+Use `this` to set fields on the instance:
+
+```
+class Point {
+    function construct(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+    
+    function distanceFromOrigin() {
+        Math::sqrt(this.x * this.x + this.y * this.y);
+    }
+}
+
+let p = new Point(3, 4);
+print(p.x);                    // 3
+print(p.y);                    // 4
+print(p.distanceFromOrigin()); // 5
+```
+
+#### Methods and `this`
+
+Methods can access instance fields via `this`. Methods can also call other methods
+on the same instance:
+
+```
+class MathUtils {
+    function factorial(n) {
+        if (n <= 1) {
+            1;
+        } else {
+            n * this.factorial(n - 1);
+        }
+    }
+}
+
+let math = new MathUtils();
+print(math.factorial(5)); // 120
+```
+
+#### Mutating state (functional style)
+
+Slang uses value semantics for objects. To mutate instance state, methods should
+return `this` after making changes, and callers should reassign the result:
+
+```
+class Counter {
+    function construct(start) {
+        this.value = start;
+    }
+    
+    function increment() {
+        this.value = this.value + 1;
+        this;  // Return this to allow reassignment
+    }
+    
+    function getValue() {
+        this.value;
+    }
+}
+
+let c = new Counter(0);
+c = c.increment();  // Reassign to capture mutation
+c = c.increment();
+c = c.increment();
+print(c.getValue()); // 3
+```
+
+#### Method chaining
+
+Since mutating methods return `this`, you can chain method calls:
+
+```
+class StringBuilder {
+    function construct() {
+        this.value = "";
+    }
+    
+    function append(s) {
+        this.value = this.value + s;
+        this;
+    }
+    
+    function build() {
+        this.value;
+    }
+}
+
+let result = new StringBuilder()
+    .append("Hello")
+    .append(" ")
+    .append("World!")
+    .build();
+    
+print(result); // "Hello World!"
+```
+
+#### Multiple instances
+
+Each instance created with `new` is independent:
+
+```
+class Box {
+    function construct(val) {
+        this.value = val;
+    }
+    
+    function get() {
+        this.value;
+    }
+}
+
+let a = new Box(100);
+let b = new Box(200);
+print(a.get()); // 100
+print(b.get()); // 200
+```
+
+#### Classes without constructors
+
+Classes don't require a `construct` method. If omitted, `new` simply creates
+an empty instance with the class methods attached:
+
+```
+class Utils {
+    function double(x) { x * 2; }
+    function triple(x) { x * 3; }
+}
+
+let u = new Utils();
+print(u.double(5)); // 10
+print(u.triple(5)); // 15
+```
+
+#### How classes work internally
+
+Classes in Slang are syntactic sugar over objects:
+
+1. `class Foo { ... }` creates a `Class` object containing all method definitions
+2. `new Foo(args)` creates a plain object with all methods copied in
+3. If a `construct` method exists, it's called with `this` bound to the new instance
+4. The modified `this` (with any fields set in the constructor) is returned
+
+This means instances are regular objects that can be manipulated with `Obj::` helpers:
+
+```
+class Person {
+    function construct(name) {
+        this.name = name;
+    }
+}
+
+let p = new Person("Alice");
+let keys = Obj::keys(p);    // ["name", "construct"]
+print(Obj::has(p, "name")); // true
+```
+
 ### Higher order functions
 
 ```

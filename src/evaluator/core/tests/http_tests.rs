@@ -7,14 +7,20 @@ fn test_http_get_error_handling() {
     let obj = eval_input(input);
     match obj {
         Object::Error(_) => {}
-        other => panic!("expected error from HTTP::get with integer, got {:?}", other),
+        other => panic!(
+            "expected error from HTTP::get with integer, got {:?}",
+            other
+        ),
     }
 
     let input2 = r#"HTTP::get();"#;
     let obj2 = eval_input(input2);
     match obj2 {
         Object::Error(_) => {}
-        other => panic!("expected error from HTTP::get with no args, got {:?}", other),
+        other => panic!(
+            "expected error from HTTP::get with no args, got {:?}",
+            other
+        ),
     }
 }
 
@@ -24,7 +30,10 @@ fn test_http_post_error_handling() {
     let obj = eval_input(input);
     match obj {
         Object::Error(_) => {}
-        other => panic!("expected error from HTTP::post with integer URL, got {:?}", other),
+        other => panic!(
+            "expected error from HTTP::post with integer URL, got {:?}",
+            other
+        ),
     }
 
     let input2 = r#"HTTP::post("http://example.com");"#;
@@ -41,7 +50,10 @@ fn test_http_put_error_handling() {
     let obj = eval_input(input);
     match obj {
         Object::Error(_) => {}
-        other => panic!("expected error from HTTP::put with integer URL, got {:?}", other),
+        other => panic!(
+            "expected error from HTTP::put with integer URL, got {:?}",
+            other
+        ),
     }
 }
 
@@ -51,7 +63,10 @@ fn test_http_delete_error_handling() {
     let obj = eval_input(input);
     match obj {
         Object::Error(_) => {}
-        other => panic!("expected error from HTTP::delete with integer, got {:?}", other),
+        other => panic!(
+            "expected error from HTTP::delete with integer, got {:?}",
+            other
+        ),
     }
 }
 
@@ -61,7 +76,10 @@ fn test_http_patch_error_handling() {
     let obj = eval_input(input);
     match obj {
         Object::Error(_) => {}
-        other => panic!("expected error from HTTP::patch with integer URL, got {:?}", other),
+        other => panic!(
+            "expected error from HTTP::patch with integer URL, got {:?}",
+            other
+        ),
     }
 }
 
@@ -71,7 +89,10 @@ fn test_http_head_error_handling() {
     let obj = eval_input(input);
     match obj {
         Object::Error(_) => {}
-        other => panic!("expected error from HTTP::head with integer, got {:?}", other),
+        other => panic!(
+            "expected error from HTTP::head with integer, got {:?}",
+            other
+        ),
     }
 }
 
@@ -153,7 +174,3 @@ fn test_http_404_error() {
     let obj = eval_input(input);
     assert_eq!(obj, Object::Boolean(true));
 }
-
-
-
-

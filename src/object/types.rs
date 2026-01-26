@@ -1,10 +1,10 @@
+use crate::ast::{BlockStatement, Identifier};
+use crate::env::EnvRef;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 use std::fs::File;
 use std::rc::Rc;
-use crate::ast::{BlockStatement, Identifier};
-use crate::env::EnvRef;
 
 #[derive(Debug, Clone)]
 pub enum Object {
@@ -25,6 +25,12 @@ pub enum Object {
         env: EnvRef,
     },
     Builtin(BuiltinFunction),
+
+    // Classes
+    Class {
+        name: String,
+        methods: HashMap<String, Object>,
+    },
 
     // Control-flow / special runtime values
     ReturnValue(Box<Object>),
@@ -95,6 +101,7 @@ impl PartialEq for Object {
             // which the current code never relies on).
             (Function { .. }, Function { .. }) => false,
             (Builtin(_), Builtin(_)) => false,
+            (Class { .. }, Class { .. }) => false,
             (ReturnValue(a), ReturnValue(b)) => a == b,
             (File(_), File(_)) => false,
             (Error(a), Error(b)) => a == b,
@@ -122,7 +129,7 @@ impl Display for Object {
                     .collect::<Vec<_>>()
                     .join(", ");
                 write!(f, "[{}]", inner)
-            },
+            }
             Object::Object(map) => {
                 let mut parts = Vec::with_capacity(map.len());
                 for (k, v) in map {
@@ -132,13 +139,14 @@ impl Display for Object {
             }
             Object::Function { .. } => write!(f, "<user fn>"),
             Object::Builtin(_) => write!(f, "<native fn>"),
+            Object::Class { name, .. } => write!(f, "<class {}>", name),
             Object::ReturnValue(obj) => write!(f, "{}", obj.to_string()),
             Object::File(_) => write!(f, "<file>"),
             Object::Error(msg) => write!(f, "{}", msg),
-             Object::OptionSome(inner) => write!(f, "Some({})", inner),
-             Object::OptionNone => write!(f, "None"),
-             Object::ResultOk(inner) => write!(f, "Ok({})", inner),
-             Object::ResultErr(inner) => write!(f, "Err({})", inner),
+            Object::OptionSome(inner) => write!(f, "Some({})", inner),
+            Object::OptionNone => write!(f, "None"),
+            Object::ResultOk(inner) => write!(f, "Ok({})", inner),
+            Object::ResultErr(inner) => write!(f, "Err({})", inner),
             Object::Null => write!(f, "null"),
         }
     }

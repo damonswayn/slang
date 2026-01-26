@@ -81,10 +81,9 @@ fn test_file_namespace_read_write_errors() {
             assert_eq!(vals[2], Object::Boolean(true));
             assert_eq!(vals[3], Object::Boolean(true));
         }
-        other => panic!("expected array from file read/write error test, got {:?}", other),
+        other => panic!(
+            "expected array from file read/write error test, got {:?}",
+            other
+        ),
     }
 }
-
-
-
-

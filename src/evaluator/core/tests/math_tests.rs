@@ -66,7 +66,9 @@ fn test_math_logarithms() {
             }
 
             match &vals[3] {
-                Object::Float(f) => assert!((*f - 2.718281828).abs() < 0.0001, "exp(1) should be ~e"),
+                Object::Float(f) => {
+                    assert!((*f - 2.718281828).abs() < 0.0001, "exp(1) should be ~e")
+                }
                 other => panic!("expected float, got {:?}", other),
             }
 
@@ -107,7 +109,9 @@ fn test_math_inverse_trig() {
             }
 
             match &vals[1] {
-                Object::Float(f) => assert!((*f - pi / 2.0).abs() < 0.0001, "asin(1) should be π/2"),
+                Object::Float(f) => {
+                    assert!((*f - pi / 2.0).abs() < 0.0001, "asin(1) should be π/2")
+                }
                 other => panic!("expected float, got {:?}", other),
             }
 
@@ -117,7 +121,9 @@ fn test_math_inverse_trig() {
             }
 
             match &vals[3] {
-                Object::Float(f) => assert!((*f - pi / 2.0).abs() < 0.0001, "acos(0) should be π/2"),
+                Object::Float(f) => {
+                    assert!((*f - pi / 2.0).abs() < 0.0001, "acos(0) should be π/2")
+                }
                 other => panic!("expected float, got {:?}", other),
             }
 
@@ -127,21 +133,30 @@ fn test_math_inverse_trig() {
             }
 
             match &vals[5] {
-                Object::Float(f) => assert!((*f - pi / 4.0).abs() < 0.0001, "atan(1) should be π/4"),
+                Object::Float(f) => {
+                    assert!((*f - pi / 4.0).abs() < 0.0001, "atan(1) should be π/4")
+                }
                 other => panic!("expected float, got {:?}", other),
             }
 
             match &vals[6] {
-                Object::Float(f) => assert!((*f - pi / 4.0).abs() < 0.0001, "atan2(1,1) should be π/4"),
+                Object::Float(f) => {
+                    assert!((*f - pi / 4.0).abs() < 0.0001, "atan2(1,1) should be π/4")
+                }
                 other => panic!("expected float, got {:?}", other),
             }
 
             match &vals[7] {
-                Object::Float(f) => assert!((*f - pi / 2.0).abs() < 0.0001, "atan2(1,0) should be π/2"),
+                Object::Float(f) => {
+                    assert!((*f - pi / 2.0).abs() < 0.0001, "atan2(1,0) should be π/2")
+                }
                 other => panic!("expected float, got {:?}", other),
             }
         }
-        other => panic!("expected array from Math inverse trig test, got {:?}", other),
+        other => panic!(
+            "expected array from Math inverse trig test, got {:?}",
+            other
+        ),
     }
 }
 
@@ -369,13 +384,12 @@ fn test_math_extras_error_handling() {
 
     let input3 = r#"Math::randomInt(10, 5);"#;
     let obj3 = eval_input(input3);
-    assert!(obj3.is_error(), "Math::randomInt with min > max should error");
+    assert!(
+        obj3.is_error(),
+        "Math::randomInt with min > max should error"
+    );
 
     let input4 = r#"Math::PI(1);"#;
     let obj4 = eval_input(input4);
     assert!(obj4.is_error(), "Math::PI with argument should error");
 }
-
-
-
-

@@ -129,7 +129,10 @@ fn test_option_map_and_then() {
 
             assert_eq!(vals[3], Object::OptionNone);
         }
-        other => panic!("expected array from option map/and_then test, got {:?}", other),
+        other => panic!(
+            "expected array from option map/and_then test, got {:?}",
+            other
+        ),
     }
 }
 
@@ -182,13 +185,15 @@ fn test_result_map_and_then() {
                     Object::String(s) => assert_eq!(s, "non-positive"),
                     v => panic!("expected inner string \"non-positive\" for d, got {:?}", v),
                 },
-                other => panic!("expected Result::Err(\"non-positive\") for d, got {:?}", other),
+                other => panic!(
+                    "expected Result::Err(\"non-positive\") for d, got {:?}",
+                    other
+                ),
             }
         }
-        other => panic!("expected array from result map/and_then test, got {:?}", other),
+        other => panic!(
+            "expected array from result map/and_then test, got {:?}",
+            other
+        ),
     }
 }
-
-
-
-

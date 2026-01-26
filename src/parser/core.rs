@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ast::{Program, Expression};
+use crate::ast::{Expression, Program};
 use crate::debug_log;
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
@@ -8,21 +8,21 @@ use crate::token::{Token, TokenType};
 #[derive(PartialEq, PartialOrd, Debug, Copy, Clone)]
 enum Precedence {
     Lowest = 0,
-    Assign, // =
-    Or, // ||
-    And, // &&
-    Equals, // == !=
+    Assign,      // =
+    Or,          // ||
+    And,         // &&
+    Equals,      // == !=
     LessGreater, // < > <= >=
-    Sum,     // + -
-    Product, // * / %
-    Prefix, // !x, -x, ++x, --x
-    Call, // myFunction(x), x(), x.y, x[0], x++, x--
+    Sum,         // + -
+    Product,     // * / %
+    Prefix,      // !x, -x, ++x, --x
+    Call,        // myFunction(x), x(), x.y, x[0], x++, x--
 }
 
 fn precedence_of(ttype: &TokenType) -> Precedence {
     use crate::token::TokenType::{
-        And, Assign, ColonColon, Div, Dot, Equal, GreaterEqual, GreaterThan, Lbracket, LessEqual, LessThan, Mod,
-        Mul, NotEqual, Or, Plus, Minus, PlusPlus, MinusMinus, Lparen,
+        And, Assign, ColonColon, Div, Dot, Equal, GreaterEqual, GreaterThan, Lbracket, LessEqual,
+        LessThan, Lparen, Minus, MinusMinus, Mod, Mul, NotEqual, Or, Plus, PlusPlus,
     };
     match ttype {
         Assign => Precedence::Assign,
@@ -85,6 +85,7 @@ impl Parser {
         p.register_prefix(TokenType::String, Parser::parse_string_literal);
         p.register_prefix(TokenType::Lbracket, Parser::parse_array_literal);
         p.register_prefix(TokenType::Lbrace, Parser::parse_object_literal);
+        p.register_prefix(TokenType::New, Parser::parse_new_expression);
 
         // register infix parsers
         p.register_infix(TokenType::Equal, Parser::parse_infix_expression);
@@ -127,12 +128,17 @@ impl Parser {
     }
 
     pub fn parse_program(&mut self) -> Program {
-        let mut program = Program { statements: Vec::new() };
+        let mut program = Program {
+            statements: Vec::new(),
+        };
 
         debug_log!("parse_program: starting, cur_token = {:?}", self.cur_token);
 
         while self.cur_token.token_type != TokenType::Eof {
-            debug_log!("parse_program: top of loop, cur_token = {:?}", self.cur_token);
+            debug_log!(
+                "parse_program: top of loop, cur_token = {:?}",
+                self.cur_token
+            );
 
             match self.parse_statement() {
                 Some(stmt) => {
@@ -189,4 +195,3 @@ mod stmt;
 
 #[cfg(test)]
 mod tests;
-

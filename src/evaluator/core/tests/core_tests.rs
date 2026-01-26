@@ -124,7 +124,11 @@ fn test_import_relative_to_module_dir() {
     let lexer = Lexer::new(importer_source);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
-    assert!(parser.errors.is_empty(), "parser errors: {:?}", parser.errors);
+    assert!(
+        parser.errors.is_empty(),
+        "parser errors: {:?}",
+        parser.errors
+    );
 
     let env = new_env();
     env.borrow_mut()
@@ -240,25 +244,37 @@ fn test_unary_minus_precedence() {
 #[test]
 fn test_increment_decrement_on_variables() {
     let cases = vec![
-        (r#"
+        (
+            r#"
             let x = 1;
             ++x;
-        "#, Object::Integer(2)),
-        (r#"
+        "#,
+            Object::Integer(2),
+        ),
+        (
+            r#"
             let x = 1;
             let y = x++;
             y + x;
-        "#, Object::Integer(3)),
-        (r#"
+        "#,
+            Object::Integer(3),
+        ),
+        (
+            r#"
             let x = 3;
             let y = --x;
             y + x;
-        "#, Object::Integer(4)),
-        (r#"
+        "#,
+            Object::Integer(4),
+        ),
+        (
+            r#"
             let x = 3;
             let y = x--;
             y + x;
-        "#, Object::Integer(5)),
+        "#,
+            Object::Integer(5),
+        ),
     ];
 
     for (input, expected) in cases {
@@ -270,16 +286,22 @@ fn test_increment_decrement_on_variables() {
 #[test]
 fn test_increment_decrement_on_object_properties() {
     let cases = vec![
-        (r#"
+        (
+            r#"
             let p = { x: 1 };
             let y = p.x++;
             y + p.x;
-        "#, Object::Integer(3)),
-        (r#"
+        "#,
+            Object::Integer(3),
+        ),
+        (
+            r#"
             let p = { x: 1 };
             let y = ++p.x;
             y + p.x;
-        "#, Object::Integer(4)),
+        "#,
+            Object::Integer(4),
+        ),
     ];
 
     for (input, expected) in cases {
@@ -845,7 +867,3 @@ fn test_function_statement() {
     let obj = eval_input(input);
     assert_eq!(obj, Object::Integer(120));
 }
-
-
-
-

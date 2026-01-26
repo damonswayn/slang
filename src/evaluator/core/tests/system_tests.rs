@@ -138,7 +138,10 @@ fn test_sys_error_handling() {
     let obj2 = eval_input(input2);
     match obj2 {
         Object::Error(_) => {}
-        other => panic!("expected error from Sys::exec with integer, got {:?}", other),
+        other => panic!(
+            "expected error from Sys::exec with integer, got {:?}",
+            other
+        ),
     }
 
     let input3 = r#"Sys::cwd("arg");"#;
@@ -148,7 +151,3 @@ fn test_sys_error_handling() {
         other => panic!("expected error from Sys::cwd with arg, got {:?}", other),
     }
 }
-
-
-
-

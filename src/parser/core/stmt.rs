@@ -1,8 +1,10 @@
+use crate::ast::nodes::{
+    ClassStatement, ForStatement, FunctionStatement, PublishExpression, TestStatement,
+};
 use crate::ast::{
     Expression, ExpressionStatement, FunctionLiteral, Identifier, ImportStatement, IntegerLiteral,
     LetStatement, NamespaceStatement, ReturnStatement, Statement, WhileStatement,
 };
-use crate::ast::nodes::{ForStatement, FunctionStatement, PublishExpression, TestStatement};
 use crate::debug_log;
 use crate::token::TokenType;
 
@@ -48,7 +50,10 @@ impl Parser {
                 } else {
                     debug_log!("  -> treating `function` as expression statement");
                     let stmt = self.parse_expression_statement();
-                    debug_log!("  -> parse_expression_statement (for function literal) returned: {:?}", stmt);
+                    debug_log!(
+                        "  -> parse_expression_statement (for function literal) returned: {:?}",
+                        stmt
+                    );
                     stmt.map(Statement::Expression)
                 }
             }
@@ -63,6 +68,10 @@ impl Parser {
             TokenType::Test => {
                 debug_log!("  -> parsing Test statement");
                 self.parse_test_statement().map(Statement::Test)
+            }
+            TokenType::Class => {
+                debug_log!("  -> parsing Class statement");
+                self.parse_class_statement().map(Statement::Class)
             }
             _ => {
                 debug_log!("  -> default: parsing Expression statement");
@@ -101,11 +110,17 @@ impl Parser {
     }
 
     fn parse_expression_statement(&mut self) -> Option<ExpressionStatement> {
-        debug_log!("parse_expression_statement: ENTER, cur_token = {:?}", self.cur_token);
+        debug_log!(
+            "parse_expression_statement: ENTER, cur_token = {:?}",
+            self.cur_token
+        );
 
         let expr = match self.parse_expression(Precedence::Lowest) {
             Some(e) => {
-                debug_log!("parse_expression_statement: parse_expression returned Some({:?})", e);
+                debug_log!(
+                    "parse_expression_statement: parse_expression returned Some({:?})",
+                    e
+                );
                 e
             }
             None => {
@@ -115,9 +130,14 @@ impl Parser {
         };
 
         // If we see a comma- or arrow-led tail, treat this as a publish expression.
-        if matches!(self.peek_token.token_type, TokenType::Comma | TokenType::Arrow) {
+        if matches!(
+            self.peek_token.token_type,
+            TokenType::Comma | TokenType::Arrow
+        ) {
             if let Some(pub_expr) = self.parse_publish_expression(expr.clone()) {
-                let stmt = ExpressionStatement { expression: pub_expr };
+                let stmt = ExpressionStatement {
+                    expression: pub_expr,
+                };
                 debug_log!("parse_expression_statement: EXIT with publish {:?}", stmt);
                 return Some(stmt);
             }
@@ -189,7 +209,9 @@ impl Parser {
             self.next_token();
         }
 
-        Some(ReturnStatement { return_value: value })
+        Some(ReturnStatement {
+            return_value: value,
+        })
     }
 
     fn parse_while_statement(&mut self) -> Option<WhileStatement> {
@@ -302,7 +324,10 @@ impl Parser {
         self.parse_function_statement_with_tags(Vec::new())
     }
 
-    fn parse_function_statement_with_tags(&mut self, tags: Vec<String>) -> Option<FunctionStatement> {
+    fn parse_function_statement_with_tags(
+        &mut self,
+        tags: Vec<String>,
+    ) -> Option<FunctionStatement> {
         if !self.expect_peek(TokenType::Ident) {
             return None;
         }
@@ -348,6 +373,41 @@ impl Parser {
         Some(TestStatement { name, body })
     }
 
+    fn parse_class_statement(&mut self) -> Option<ClassStatement> {
+        // current token is 'class'
+        if !self.expect_peek(TokenType::Ident) {
+            return None;
+        }
+
+        let name = Identifier {
+            value: self.cur_token.literal.clone(),
+        };
+
+        if !self.expect_peek(TokenType::Lbrace) {
+            return None;
+        }
+
+        // Parse methods until closing brace
+        let mut methods = Vec::new();
+        self.next_token(); // move past '{'
+
+        while self.cur_token.token_type != TokenType::Rbrace
+            && self.cur_token.token_type != TokenType::Eof
+        {
+            if self.cur_token.token_type == TokenType::Function {
+                // Check if next token is an identifier (named function)
+                if self.peek_token.token_type == TokenType::Ident {
+                    if let Some(func) = self.parse_function_statement() {
+                        methods.push(func);
+                    }
+                }
+            }
+            self.next_token();
+        }
+
+        Some(ClassStatement { name, methods })
+    }
+
     fn parse_tagged_function_statement(&mut self) -> Option<FunctionStatement> {
         let tags = self.parse_tag_group_from_parens()?;
 
@@ -371,7 +431,7 @@ impl Parser {
             }
             tags.push(self.cur_token.literal.clone());
 
-        match self.peek_token.token_type.clone() {
+            match self.peek_token.token_type.clone() {
                 TokenType::Comma => {
                     self.next_token(); // consume comma
                     continue;
@@ -381,10 +441,8 @@ impl Parser {
                     break;
                 }
                 other => {
-                    self.errors.push(format!(
-                        "expected ',' or ')' after tag, got {:?}",
-                        other
-                    ));
+                    self.errors
+                        .push(format!("expected ',' or ')' after tag, got {:?}", other));
                     return None;
                 }
             }
@@ -419,7 +477,10 @@ impl Parser {
             stages.push(tags);
         }
 
-        Some(Expression::Publish(Box::new(PublishExpression { args, stages })))
+        Some(Expression::Publish(Box::new(PublishExpression {
+            args,
+            stages,
+        })))
     }
 
     fn parse_tags(&mut self) -> Option<Vec<String>> {
@@ -443,5 +504,3 @@ impl Parser {
         Some(vec![self.cur_token.literal.clone()])
     }
 }
-
-

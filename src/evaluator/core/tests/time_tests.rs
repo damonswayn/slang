@@ -151,14 +151,20 @@ fn test_time_error_handling() {
     let obj = eval_input(input);
     match obj {
         Object::Error(_) => {}
-        other => panic!("expected error from Time::year with string, got {:?}", other),
+        other => panic!(
+            "expected error from Time::year with string, got {:?}",
+            other
+        ),
     }
 
     let input2 = r#"Time::format(123);"#;
     let obj2 = eval_input(input2);
     match obj2 {
         Object::Error(_) => {}
-        other => panic!("expected error from Time::format with one arg, got {:?}", other),
+        other => panic!(
+            "expected error from Time::format with one arg, got {:?}",
+            other
+        ),
     }
 
     let input3 = r#"Time::now(123);"#;
@@ -172,10 +178,9 @@ fn test_time_error_handling() {
     let obj4 = eval_input(input4);
     match obj4 {
         Object::Error(_) => {}
-        other => panic!("expected error from Time::sleep with negative, got {:?}", other),
+        other => panic!(
+            "expected error from Time::sleep with negative, got {:?}",
+            other
+        ),
     }
 }
-
-
-
-

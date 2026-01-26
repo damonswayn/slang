@@ -116,7 +116,10 @@ fn test_type_is_compound_checks() {
             assert_eq!(vals[8], Object::Boolean(true));
             assert_eq!(vals[9], Object::Boolean(false));
         }
-        other => panic!("expected array from Type::is* compound test, got {:?}", other),
+        other => panic!(
+            "expected array from Type::is* compound test, got {:?}",
+            other
+        ),
     }
 }
 
@@ -153,10 +156,9 @@ fn test_type_is_special_checks() {
             assert_eq!(vals[6], Object::Boolean(true));
             assert_eq!(vals[7], Object::Boolean(false));
         }
-        other => panic!("expected array from Type::is* special test, got {:?}", other),
+        other => panic!(
+            "expected array from Type::is* special test, got {:?}",
+            other
+        ),
     }
 }
-
-
-
-

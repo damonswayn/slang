@@ -1,16 +1,16 @@
 use std::rc::Rc;
 
 use crate::ast::nodes::{
-    InfixOp, ObjectLiteral, PrefixExpression, PrefixOp, PropertyAccess, PostfixExpression,
-    PostfixOp, PublishExpression,
+    InfixOp, NewExpression, ObjectLiteral, PostfixExpression, PostfixOp, PrefixExpression,
+    PrefixOp, PropertyAccess, PublishExpression,
 };
 use crate::ast::{
     ArrayLiteral, CallExpression, Expression, FunctionLiteral, Identifier, IndexExpression,
     InfixExpression,
 };
-use crate::{builtins, debug_log};
-use crate::env::{EnvRef, new_enclosed_env, subscribers_for_tag};
+use crate::env::{new_enclosed_env, subscribers_for_tag, EnvRef};
 use crate::object::Object;
+use crate::{builtins, debug_log};
 
 use super::stmt::eval_if_expression;
 
@@ -33,6 +33,7 @@ pub(super) fn eval_expression(expr: &Expression, env: EnvRef) -> Object {
         Expression::ObjectLiteral(ol) => eval_object_literal(ol, env),
         Expression::PropertyAccess(pa) => eval_property_access(pa, env),
         Expression::Publish(pubexpr) => eval_publish_expression(pubexpr, env),
+        Expression::New(new_expr) => eval_new_expression(new_expr, env),
     }
 }
 
@@ -125,10 +126,7 @@ fn eval_infix_expression(infix: &InfixExpression, env: EnvRef) -> Object {
 
         (Object::Boolean(l), Object::Boolean(r)) => eval_boolean_infix(&infix.operator, l, r),
         (Object::String(l), Object::String(r)) => eval_string_infix(&infix.operator, &l, &r),
-        (l, r) => Object::error(format!(
-            "type mismatch: {:?} {} {:?}",
-            l, infix.operator, r
-        )),
+        (l, r) => Object::error(format!("type mismatch: {:?} {} {:?}", l, infix.operator, r)),
     }
 }
 
@@ -226,8 +224,12 @@ fn eval_inc_dec_expression(
     is_prefix: bool,
 ) -> Object {
     match target {
-        Expression::Identifier(ident) => apply_inc_dec_to_identifier(ident, env, is_increment, is_prefix),
-        Expression::PropertyAccess(pa) => apply_inc_dec_to_property(pa, env, is_increment, is_prefix),
+        Expression::Identifier(ident) => {
+            apply_inc_dec_to_identifier(ident, env, is_increment, is_prefix)
+        }
+        Expression::PropertyAccess(pa) => {
+            apply_inc_dec_to_property(pa, env, is_increment, is_prefix)
+        }
         _ => Object::error("invalid increment/decrement target"),
     }
 }
@@ -326,15 +328,9 @@ fn eval_call_expression(call: &CallExpression, env: EnvRef) -> Object {
         }
 
         let method = match &receiver {
-            Object::Object(map) => map
-                .get(&pa.property.value)
-                .cloned()
-                .unwrap_or(Object::Null),
+            Object::Object(map) => map.get(&pa.property.value).cloned().unwrap_or(Object::Null),
             other => {
-                return Object::error(format!(
-                    "property call not supported on value: {:?}",
-                    other
-                ))
+                return Object::error(format!("property call not supported on value: {:?}", other))
             }
         };
 
@@ -465,10 +461,7 @@ fn eval_property_access(pa: &PropertyAccess, env: EnvRef) -> Object {
     }
 
     match obj {
-        Object::Object(map) => map
-            .get(&pa.property.value)
-            .cloned()
-            .unwrap_or(Object::Null),
+        Object::Object(map) => map.get(&pa.property.value).cloned().unwrap_or(Object::Null),
         other => Object::error(format!(
             "property access not supported on value: {:?}",
             other
@@ -502,8 +495,7 @@ fn eval_publish_expression(pubexpr: &PublishExpression, env: EnvRef) -> Object {
                     Err(msg) => return Object::error(msg),
                 };
 
-                let result =
-                    apply_function_with_this(func, args, None, Rc::clone(&env));
+                let result = apply_function_with_this(func, args, None, Rc::clone(&env));
                 if result.is_error() {
                     return result;
                 }
@@ -560,6 +552,72 @@ fn build_args_for_subscriber(values: &[Object], func: &Object) -> Result<Vec<Obj
     }
 }
 
+fn eval_new_expression(new_expr: &NewExpression, env: EnvRef) -> Object {
+    // Look up the class
+    let class_name = &new_expr.class_name.value;
+    let class_obj = {
+        let env_borrow = env.borrow();
+        match env_borrow.get(class_name) {
+            Some(obj) => obj,
+            None => return Object::error(format!("class not found: {}", class_name)),
+        }
+    };
+
+    let methods = match class_obj {
+        Object::Class { methods, .. } => methods,
+        other => return Object::error(format!("not a class: {:?}", other)),
+    };
+
+    // Create instance as a plain Object with all methods copied
+    let instance = Object::Object(methods.clone());
+
+    // Evaluate constructor arguments
+    let args: Vec<Object> = new_expr
+        .arguments
+        .iter()
+        .map(|arg| eval_expression(arg, Rc::clone(&env)))
+        .collect();
+
+    // Check for any errors in arguments
+    for arg in &args {
+        if arg.is_error() {
+            return arg.clone();
+        }
+    }
+
+    // If there's a 'construct' method, call it with `this` bound to instance
+    if let Some(constructor) = methods.get("construct").cloned() {
+        match constructor {
+            Object::Function {
+                params,
+                body,
+                env: fn_env,
+            } => {
+                let extended = new_enclosed_env(fn_env);
+                {
+                    let mut inner = extended.borrow_mut();
+                    inner.set("this".to_string(), instance.clone());
+                    for (param, arg) in params.iter().zip(args) {
+                        inner.set(param.value.clone(), arg);
+                    }
+                }
+
+                let result = super::stmt::eval_block_statement(&body, Rc::clone(&extended));
+                if result.is_error() {
+                    return result;
+                }
+
+                // Get the modified `this` from the constructor's environment
+                let modified_this = extended.borrow().get("this").unwrap_or(instance);
+                return modified_this;
+            }
+            _ => return Object::error("construct is not a function"),
+        }
+    }
+
+    instance
+}
+
 /// Handle assignments like `obj.field = value` and nested `obj.a.b = value`.
 fn assign_to_property_access(
     pa: &PropertyAccess,
@@ -572,8 +630,10 @@ fn assign_to_property_access(
     let root_ident = match collect_property_chain(&pa.object, &mut props) {
         Some(name) => name,
         None => {
-            return Err("left side of assignment must be an object property (like x.y or x.y.z)"
-                .to_string())
+            return Err(
+                "left side of assignment must be an object property (like x.y or x.y.z)"
+                    .to_string(),
+            )
         }
     };
 
@@ -602,8 +662,7 @@ fn assign_to_property_access(
         assign_into_object(current_root.clone(), &props, &new_value).map_err(|e| e)?;
 
     // Store updated root back into current environment scope
-    env.borrow_mut()
-        .set(root_ident, updated_root);
+    env.borrow_mut().set(root_ident, updated_root);
 
     Ok(())
 }
@@ -633,11 +692,10 @@ fn assign_to_index_expression(
     new_value: Object,
 ) -> Result<(), String> {
     let mut props: Vec<String> = Vec::new();
-    let root_ident =
-        collect_index_chain(target, Rc::clone(&env), &mut props).ok_or_else(|| {
-            "left side of assignment must be an object index (like x[\"y\"] or x[\"a\"][\"b\"])"
-                .to_string()
-        })?;
+    let root_ident = collect_index_chain(target, Rc::clone(&env), &mut props).ok_or_else(|| {
+        "left side of assignment must be an object index (like x[\"y\"] or x[\"a\"][\"b\"])"
+            .to_string()
+    })?;
 
     debug_log!(
         "assign_to_index_expression: root = {}, props = {:?}",
@@ -671,11 +729,7 @@ fn assign_to_index_expression(
 
 /// Collect the root identifier and dynamic string key chain for an index-based
 /// assignment target, e.g. `obj["a"]["b"]` -> root `obj`, props = ["a", "b"].
-fn collect_index_chain(
-    expr: &Expression,
-    env: EnvRef,
-    props: &mut Vec<String>,
-) -> Option<String> {
+fn collect_index_chain(expr: &Expression, env: EnvRef, props: &mut Vec<String>) -> Option<String> {
     match expr {
         Expression::IndexExpression(ix) => {
             // Evaluate the index expression and ensure it is a string key.
@@ -701,11 +755,7 @@ fn collect_index_chain(
 
 /// Given a root object and a property path, produces a new value with the
 /// property updated, preserving value semantics.
-fn assign_into_object(
-    obj: Object,
-    props: &[String],
-    new_value: &Object,
-) -> Result<Object, String> {
+fn assign_into_object(obj: Object, props: &[String], new_value: &Object) -> Result<Object, String> {
     if props.is_empty() {
         return Ok(new_value.clone());
     }
@@ -720,7 +770,9 @@ fn assign_into_object(
                 Ok(Object::Object(map))
             } else {
                 // Need to drill down into nested object
-                let child = map.remove(key).unwrap_or_else(|| Object::Object(Default::default()));
+                let child = map
+                    .remove(key)
+                    .unwrap_or_else(|| Object::Object(Default::default()));
 
                 let updated_child = assign_into_object(child, &props[1..], new_value)?;
                 map.insert(key.clone(), updated_child);
@@ -742,5 +794,3 @@ pub(super) fn is_truthy(obj: &Object) -> bool {
         _ => true, // everything else is truthy
     }
 }
-
-

@@ -1,11 +1,11 @@
-use crate::ast::{
-    ArrayLiteral, BlockStatement, CallExpression, Expression, ExpressionStatement,
-    FunctionLiteral, Identifier, IfExpression, IndexExpression, InfixExpression, InfixOp,
-    IntegerLiteral, Statement, StringLiteral,
-};
 use crate::ast::nodes::{
-    BooleanLiteral, FloatLiteral, ObjectLiteral, PrefixExpression, PrefixOp, PropertyAccess,
-    PostfixExpression, PostfixOp,
+    BooleanLiteral, FloatLiteral, NewExpression, ObjectLiteral, PostfixExpression, PostfixOp,
+    PrefixExpression, PrefixOp, PropertyAccess,
+};
+use crate::ast::{
+    ArrayLiteral, BlockStatement, CallExpression, Expression, ExpressionStatement, FunctionLiteral,
+    Identifier, IfExpression, IndexExpression, InfixExpression, InfixOp, IntegerLiteral, Statement,
+    StringLiteral,
 };
 use crate::debug_log;
 use crate::token::TokenType;
@@ -18,12 +18,17 @@ impl Parser {
     pub(super) fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
         debug_log!(
             "parse_expression: ENTER, cur_token = {:?}, peek_token = {:?}, precedence = {:?}",
-            self.cur_token, self.peek_token, precedence
+            self.cur_token,
+            self.peek_token,
+            precedence
         );
 
         let prefix = match self.prefix_fns.get(&self.cur_token.token_type).copied() {
             Some(prefix) => {
-                debug_log!("parse_expression: found prefix fn for {:?}", self.cur_token.token_type);
+                debug_log!(
+                    "parse_expression: found prefix fn for {:?}",
+                    self.cur_token.token_type
+                );
                 prefix
             }
             None => {
@@ -48,7 +53,8 @@ impl Parser {
 
         debug_log!(
             "parse_expression: after prefix, cur_token = {:?}, peek_token = {:?}",
-            self.cur_token, self.peek_token
+            self.cur_token,
+            self.peek_token
         );
 
         while self.peek_token.token_type != TokenType::Semicolon
@@ -115,8 +121,10 @@ impl Parser {
         match self.cur_token.literal.parse::<i64>() {
             Ok(v) => Some(Expression::IntegerLiteral(IntegerLiteral { value: v })),
             Err(_) => {
-                self.errors
-                    .push(format!("could not parse {} as integer", self.cur_token.literal));
+                self.errors.push(format!(
+                    "could not parse {} as integer",
+                    self.cur_token.literal
+                ));
                 None
             }
         }
@@ -126,8 +134,10 @@ impl Parser {
         match self.cur_token.literal.parse::<f64>() {
             Ok(v) => Some(Expression::FloatLiteral(FloatLiteral { value: v })),
             Err(_) => {
-                self.errors
-                    .push(format!("could not parse {} as float", self.cur_token.literal));
+                self.errors.push(format!(
+                    "could not parse {} as float",
+                    self.cur_token.literal
+                ));
                 None
             }
         }
@@ -280,13 +290,18 @@ impl Parser {
 
         let body = self.parse_block_statement()?;
 
-        Some(Expression::FunctionLiteral(FunctionLiteral { params, body }))
+        Some(Expression::FunctionLiteral(FunctionLiteral {
+            params,
+            body,
+        }))
     }
 
     pub(super) fn parse_call_expression(&mut self, function: Expression) -> Option<Expression> {
         debug_log!(
             "parse_call_expression: ENTER, function = {:?}, cur_token = {:?}, peek_token = {:?}",
-            function, self.cur_token, self.peek_token
+            function,
+            self.cur_token,
+            self.peek_token
         );
 
         let arguments = self.parse_expression_list(TokenType::Rparen)?;
@@ -294,6 +309,28 @@ impl Parser {
 
         Some(Expression::CallExpression(Box::new(CallExpression {
             function: Box::new(function),
+            arguments,
+        })))
+    }
+
+    pub(super) fn parse_new_expression(&mut self) -> Option<Expression> {
+        // current token is 'new'
+        if !self.expect_peek(TokenType::Ident) {
+            return None;
+        }
+
+        let class_name = Identifier {
+            value: self.cur_token.literal.clone(),
+        };
+
+        if !self.expect_peek(TokenType::Lparen) {
+            return None;
+        }
+
+        let arguments = self.parse_expression_list(TokenType::Rparen)?;
+
+        Some(Expression::New(Box::new(NewExpression {
+            class_name,
             arguments,
         })))
     }
@@ -309,13 +346,17 @@ impl Parser {
 
         // first param
         self.next_token(); // current = first identifier
-        params.push(Identifier { value: self.cur_token.literal.clone() });
+        params.push(Identifier {
+            value: self.cur_token.literal.clone(),
+        });
 
         // more params
         while self.peek_token.token_type == TokenType::Comma {
             self.next_token(); // skip ','
             self.next_token(); // move to next ident
-            params.push(Identifier { value: self.cur_token.literal.clone() });
+            params.push(Identifier {
+                value: self.cur_token.literal.clone(),
+            });
         }
 
         if !self.expect_peek(TokenType::Rparen) {
@@ -395,7 +436,9 @@ impl Parser {
     pub(super) fn parse_expression_list(&mut self, end: TokenType) -> Option<Vec<Expression>> {
         debug_log!(
             "parse_expression_list: ENTER, end = {:?}, cur_token = {:?}, peek_token = {:?}",
-            end, self.cur_token, self.peek_token
+            end,
+            self.cur_token,
+            self.peek_token
         );
 
         let mut list = Vec::new();
@@ -409,7 +452,8 @@ impl Parser {
         self.next_token(); // move to first argument
         debug_log!(
             "parse_expression_list: after first next_token, cur_token = {:?}, peek_token = {:?}",
-            self.cur_token, self.peek_token
+            self.cur_token,
+            self.peek_token
         );
 
         list.push(self.parse_expression(Precedence::Lowest)?);
@@ -468,7 +512,9 @@ impl Parser {
 
     pub(super) fn parse_block_statement(&mut self) -> Option<BlockStatement> {
         // current token is '{'
-        let mut block = BlockStatement { statements: Vec::new() };
+        let mut block = BlockStatement {
+            statements: Vec::new(),
+        };
 
         self.next_token(); // move to first token inside block
 
@@ -484,5 +530,3 @@ impl Parser {
         Some(block)
     }
 }
-
-

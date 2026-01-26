@@ -96,7 +96,10 @@ fn test_array_find_some_every_flat_map() {
                 other => panic!("expected array from Array::flatMap, got {:?}", other),
             }
         }
-        other => panic!("expected array from Array::find/some/every/flatMap test, got {:?}", other),
+        other => panic!(
+            "expected array from Array::find/some/every/flatMap test, got {:?}",
+            other
+        ),
     }
 }
 
@@ -209,7 +212,10 @@ fn test_array_index_of_and_includes() {
             assert_eq!(vals[3], Object::Boolean(false));
             assert_eq!(vals[4], Object::Boolean(true));
         }
-        other => panic!("expected array from Array::indexOf/includes test, got {:?}", other),
+        other => panic!(
+            "expected array from Array::indexOf/includes test, got {:?}",
+            other
+        ),
     }
 }
 
@@ -369,7 +375,10 @@ fn test_array_expansions_error_handling() {
 
     let input2 = r#"Array::slice([1,2,3], "a", 2);"#;
     let obj2 = eval_input(input2);
-    assert!(obj2.is_error(), "Array::slice with non-integer should error");
+    assert!(
+        obj2.is_error(),
+        "Array::slice with non-integer should error"
+    );
 
     let input3 = r#"Array::take([1,2,3], -1);"#;
     let obj3 = eval_input(input3);
@@ -550,7 +559,10 @@ fn test_array_is_empty_and_len() {
             assert_eq!(vals[2], Object::Integer(0));
             assert_eq!(vals[3], Object::Integer(3));
         }
-        other => panic!("expected array from Array::isEmpty/len test, got {:?}", other),
+        other => panic!(
+            "expected array from Array::isEmpty/len test, got {:?}",
+            other
+        ),
     }
 }
 
@@ -576,17 +588,22 @@ fn test_array_extras_error_handling() {
 
     let input2 = r#"Array::unzip([[1, 2], "not pair"]);"#;
     let obj2 = eval_input(input2);
-    assert!(obj2.is_error(), "Array::unzip with invalid pairs should error");
+    assert!(
+        obj2.is_error(),
+        "Array::unzip with invalid pairs should error"
+    );
 
     let input3 = r#"Array::fill("x", -1);"#;
     let obj3 = eval_input(input3);
-    assert!(obj3.is_error(), "Array::fill with negative count should error");
+    assert!(
+        obj3.is_error(),
+        "Array::fill with negative count should error"
+    );
 
     let input4 = r#"Array::partition([1,2,3], fn(x) { "not bool"; });"#;
     let obj4 = eval_input(input4);
-    assert!(obj4.is_error(), "Array::partition with non-bool predicate should error");
+    assert!(
+        obj4.is_error(),
+        "Array::partition with non-bool predicate should error"
+    );
 }
-
-
-
-

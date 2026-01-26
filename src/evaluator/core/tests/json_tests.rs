@@ -43,7 +43,3 @@ fn test_json_namespace_parse_and_stringify() {
         other => panic!("expected array from Json namespace test, got {:?}", other),
     }
 }
-
-
-
-

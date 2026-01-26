@@ -3,12 +3,13 @@ use std::path::Path;
 use std::rc::Rc;
 
 use crate::ast::nodes::{
-    ForStatement, FunctionStatement, NamespaceStatement, ReturnStatement, TestStatement,
+    ClassStatement, ForStatement, FunctionStatement, NamespaceStatement, ReturnStatement,
+    TestStatement,
 };
 use crate::ast::{
     BlockStatement, IfExpression, ImportStatement, LetStatement, Statement, WhileStatement,
 };
-use crate::env::{EnvRef, new_enclosed_env, new_env, register_subscription};
+use crate::env::{new_enclosed_env, new_env, register_subscription, EnvRef};
 use crate::lexer::Lexer;
 use crate::object::Object;
 use crate::parser::Parser;
@@ -26,6 +27,7 @@ pub(super) fn eval_statement(stmt: &Statement, env: EnvRef) -> Object {
         Statement::Test(ts) => eval_test_statement(ts, Rc::clone(&env)),
         Statement::Namespace(ns) => eval_namespace_statement(ns, Rc::clone(&env)),
         Statement::Import(is) => eval_import_statement(is, Rc::clone(&env)),
+        Statement::Class(cs) => eval_class_statement(cs, Rc::clone(&env)),
     }
 }
 
@@ -136,7 +138,8 @@ fn eval_function_statement(fs: &FunctionStatement, env: EnvRef) -> Object {
         env: Rc::clone(&env), // capture defining env for closures/recursion
     };
 
-    env.borrow_mut().set(fs.name.value.clone(), func_obj.clone());
+    env.borrow_mut()
+        .set(fs.name.value.clone(), func_obj.clone());
 
     // Register function under any declared pub/sub tags.
     for tag in &fs.tags {
@@ -169,6 +172,28 @@ fn eval_namespace_statement(ns: &NamespaceStatement, env: EnvRef) -> Object {
     let exported = ns_env.borrow().snapshot();
     env.borrow_mut()
         .set(ns.name.value.clone(), Object::Object(exported));
+
+    Object::Null
+}
+
+fn eval_class_statement(cs: &ClassStatement, env: EnvRef) -> Object {
+    let mut methods = std::collections::HashMap::new();
+
+    for method in &cs.methods {
+        let func_obj = Object::Function {
+            params: method.literal.params.clone(),
+            body: method.literal.body.clone(),
+            env: Rc::clone(&env), // Capture class definition environment
+        };
+        methods.insert(method.name.value.clone(), func_obj);
+    }
+
+    let class_obj = Object::Class {
+        name: cs.name.value.clone(),
+        methods,
+    };
+
+    env.borrow_mut().set(cs.name.value.clone(), class_obj);
 
     Object::Null
 }
@@ -260,5 +285,3 @@ fn is_builtin_namespace(name: &str) -> bool {
         "Option" | "Result" | "Regex" | "File" | "Array" | "Math" | "String" | "Json" | "Test"
     )
 }
-
-

@@ -191,6 +191,7 @@ pub(crate) fn type_of(args: Vec<Object>, _env: EnvRef) -> Object {
         Object::Object(_) => "object",
         Object::Function { .. } => "function",
         Object::Builtin(_) => "function",
+        Object::Class { .. } => "class",
         Object::ReturnValue(_) => "return",
         Object::File(_) => "file",
         Object::Error(_) => "error",
@@ -281,7 +282,10 @@ pub(crate) fn type_is_callable(args: Vec<Object>, _env: EnvRef) -> Object {
         Err(e) => return e,
     };
 
-    Object::Boolean(matches!(value, Object::Function { .. } | Object::Builtin(_)))
+    Object::Boolean(matches!(
+        value,
+        Object::Function { .. } | Object::Builtin(_)
+    ))
 }
 
 /// Type::isIterable(value) -> bool (array or string)
@@ -323,4 +327,3 @@ pub(crate) fn type_is_result(args: Vec<Object>, _env: EnvRef) -> Object {
 
     Object::Boolean(matches!(value, Object::ResultOk(_) | Object::ResultErr(_)))
 }
-

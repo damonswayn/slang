@@ -177,24 +177,29 @@ fn test_fn_error_handling() {
     let obj = eval_input(input);
     match obj {
         Object::Error(_) => {}
-        other => panic!("expected error from Fn::identity with no args, got {:?}", other),
+        other => panic!(
+            "expected error from Fn::identity with no args, got {:?}",
+            other
+        ),
     }
 
     let input2 = r#"Fn::compose(42, fn(x) { x });"#;
     let obj2 = eval_input(input2);
     match obj2 {
         Object::Error(_) => {}
-        other => panic!("expected error from Fn::compose with non-callable, got {:?}", other),
+        other => panic!(
+            "expected error from Fn::compose with non-callable, got {:?}",
+            other
+        ),
     }
 
     let input3 = r#"Fn::apply(fn(x) { x }, "not an array");"#;
     let obj3 = eval_input(input3);
     match obj3 {
         Object::Error(_) => {}
-        other => panic!("expected error from Fn::apply with non-array, got {:?}", other),
+        other => panic!(
+            "expected error from Fn::apply with non-array, got {:?}",
+            other
+        ),
     }
 }
-
-
-
-

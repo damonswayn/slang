@@ -59,7 +59,3 @@ fn test_regex_builtins() {
         other => panic!("expected array from regex builtins test, got {:?}", other),
     }
 }
-
-
-
-

@@ -33,23 +33,30 @@ pub enum TokenType {
     Equal,
     NotEqual,
 
-    Lparen, Rparen,
-    Lbrace, Rbrace,
-    Lbracket, Rbracket,
+    Lparen,
+    Rparen,
+    Lbrace,
+    Rbrace,
+    Lbracket,
+    Rbracket,
     Semicolon,
     Comma,
     Colon,
     Arrow,
 
     Let,
-    True, False,
-    If, Else,
+    True,
+    False,
+    If,
+    Else,
     Return,
     While,
     For,
     Test,
     Namespace,
     Import,
+    Class,
+    New,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,7 +67,10 @@ pub struct Token {
 
 impl Token {
     pub fn new(token_type: TokenType, literal: String) -> Token {
-        Token { token_type, literal }
+        Token {
+            token_type,
+            literal,
+        }
     }
 }
 

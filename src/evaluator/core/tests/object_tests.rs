@@ -25,7 +25,10 @@ fn test_object_namespace_keys_values_entries() {
             assert_eq!(vals[1], Object::Integer(3));
             assert_eq!(vals[2], Object::Integer(3));
         }
-        other => panic!("expected array from Obj::keys/values/entries test, got {:?}", other),
+        other => panic!(
+            "expected array from Obj::keys/values/entries test, got {:?}",
+            other
+        ),
     }
 }
 
@@ -209,9 +212,8 @@ fn test_object_namespace_error_handling() {
 
     let input3 = r#"Obj::fromEntries([["a", 1], "not-a-pair"]);"#;
     let obj3 = eval_input(input3);
-    assert!(obj3.is_error(), "Obj::fromEntries with invalid entry should error");
+    assert!(
+        obj3.is_error(),
+        "Obj::fromEntries with invalid entry should error"
+    );
 }
-
-
-
-

@@ -28,7 +28,9 @@ pub fn lookup_ident(ident: &str) -> TokenType {
         "test" => TokenType::Test,
         "namespace" => TokenType::Namespace,
         "import" => TokenType::Import,
-        _ => TokenType::Ident
+        "class" => TokenType::Class,
+        "new" => TokenType::New,
+        _ => TokenType::Ident,
     }
 }
 

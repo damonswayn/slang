@@ -41,7 +41,10 @@ fn test_string_namespace_basic() {
                     assert_eq!(chars[0], Object::String("h".to_string()));
                     assert_eq!(chars[1], Object::String("i".to_string()));
                 }
-                other => panic!("expected array of chars from String::split with empty sep, got {:?}", other),
+                other => panic!(
+                    "expected array of chars from String::split with empty sep, got {:?}",
+                    other
+                ),
             }
 
             assert_eq!(vals[5], Object::String("x-y-z".to_string()));
@@ -78,7 +81,10 @@ fn test_string_contains_starts_ends() {
             assert_eq!(vals[4], Object::Boolean(true));
             assert_eq!(vals[5], Object::Boolean(false));
         }
-        other => panic!("expected array from String::contains/startsWith/endsWith test, got {:?}", other),
+        other => panic!(
+            "expected array from String::contains/startsWith/endsWith test, got {:?}",
+            other
+        ),
     }
 }
 
@@ -238,7 +244,10 @@ fn test_string_pad_left_right() {
             assert_eq!(vals[4], Object::String("hello".to_string()));
             assert_eq!(vals[5], Object::String("a---".to_string()));
         }
-        other => panic!("expected array from String::padLeft/padRight test, got {:?}", other),
+        other => panic!(
+            "expected array from String::padLeft/padRight test, got {:?}",
+            other
+        ),
     }
 }
 
@@ -246,19 +255,31 @@ fn test_string_pad_left_right() {
 fn test_string_namespace_error_handling() {
     let input1 = r#"String::contains(123, "x");"#;
     let obj1 = eval_input(input1);
-    assert!(obj1.is_error(), "String::contains with non-string should error");
+    assert!(
+        obj1.is_error(),
+        "String::contains with non-string should error"
+    );
 
     let input2 = r#"String::slice("hello", "a", 3);"#;
     let obj2 = eval_input(input2);
-    assert!(obj2.is_error(), "String::slice with non-integer start should error");
+    assert!(
+        obj2.is_error(),
+        "String::slice with non-integer start should error"
+    );
 
     let input3 = r#"String::repeat("x", -1);"#;
     let obj3 = eval_input(input3);
-    assert!(obj3.is_error(), "String::repeat with negative count should error");
+    assert!(
+        obj3.is_error(),
+        "String::repeat with negative count should error"
+    );
 
     let input4 = r#"String::padLeft("x", 5, "ab");"#;
     let obj4 = eval_input(input4);
-    assert!(obj4.is_error(), "String::padLeft with multi-char pad should error");
+    assert!(
+        obj4.is_error(),
+        "String::padLeft with multi-char pad should error"
+    );
 }
 
 #[test]
@@ -297,7 +318,10 @@ fn test_string_chars_unicode() {
             assert_eq!(vals[1], Object::String("本".to_string()));
             assert_eq!(vals[2], Object::String("語".to_string()));
         }
-        other => panic!("expected array from String::chars with unicode, got {:?}", other),
+        other => panic!(
+            "expected array from String::chars with unicode, got {:?}",
+            other
+        ),
     }
 }
 
@@ -406,7 +430,10 @@ fn test_string_replace_all() {
     "#;
 
     let obj = eval_input(input);
-    assert_eq!(obj, Object::String("hello universe hello universe".to_string()));
+    assert_eq!(
+        obj,
+        Object::String("hello universe hello universe".to_string())
+    );
 }
 
 #[test]
@@ -455,24 +482,29 @@ fn test_string_extras_error_handling() {
     let obj = eval_input(input);
     match obj {
         Object::Error(_) => {}
-        other => panic!("expected error from String::charCodeAt out of bounds, got {:?}", other),
+        other => panic!(
+            "expected error from String::charCodeAt out of bounds, got {:?}",
+            other
+        ),
     }
 
     let input2 = r#"String::fromCharCode(-1);"#;
     let obj2 = eval_input(input2);
     match obj2 {
         Object::Error(_) => {}
-        other => panic!("expected error from String::fromCharCode negative, got {:?}", other),
+        other => panic!(
+            "expected error from String::fromCharCode negative, got {:?}",
+            other
+        ),
     }
 
     let input3 = r#"String::chars(123);"#;
     let obj3 = eval_input(input3);
     match obj3 {
         Object::Error(_) => {}
-        other => panic!("expected error from String::chars with non-string, got {:?}", other),
+        other => panic!(
+            "expected error from String::chars with non-string, got {:?}",
+            other
+        ),
     }
 }
-
-
-
-

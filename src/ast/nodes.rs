@@ -7,7 +7,9 @@ pub struct Program {
 
 impl Program {
     pub fn new() -> Self {
-        Program { statements: Vec::new() }
+        Program {
+            statements: Vec::new(),
+        }
     }
 }
 
@@ -31,6 +33,7 @@ pub enum Statement {
     Test(TestStatement),
     Namespace(NamespaceStatement),
     Import(ImportStatement),
+    Class(ClassStatement),
 }
 
 impl Display for Statement {
@@ -45,6 +48,7 @@ impl Display for Statement {
             Statement::Test(ts) => write!(f, "{}", ts),
             Statement::Namespace(ns) => write!(f, "{}", ns),
             Statement::Import(is) => write!(f, "{}", is),
+            Statement::Class(cs) => write!(f, "{}", cs),
         }
     }
 }
@@ -122,11 +126,17 @@ pub struct ForStatement {
 impl Display for ForStatement {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "for (")?;
-        if let Some(init) = &self.init { write!(f, "{}", init)?; }
+        if let Some(init) = &self.init {
+            write!(f, "{}", init)?;
+        }
         write!(f, "; ")?;
-        if let Some(cond) = &self.condition { write!(f, "{}", cond)?; }
+        if let Some(cond) = &self.condition {
+            write!(f, "{}", cond)?;
+        }
         write!(f, "; ")?;
-        if let Some(post) = &self.post { write!(f, "{}", post)?; }
+        if let Some(post) = &self.post {
+            write!(f, "{}", post)?;
+        }
         write!(f, ") {}", self.body)?;
         Ok(())
     }
@@ -163,6 +173,7 @@ pub enum Expression {
     ObjectLiteral(ObjectLiteral),
     PropertyAccess(Box<PropertyAccess>),
     Publish(Box<PublishExpression>),
+    New(Box<NewExpression>),
 }
 
 impl Display for Expression {
@@ -184,6 +195,7 @@ impl Display for Expression {
             Expression::ObjectLiteral(ol) => write!(f, "{}", ol),
             Expression::PropertyAccess(pa) => write!(f, "{}", pa),
             Expression::Publish(pubexpr) => write!(f, "{}", pubexpr),
+            Expression::New(newexpr) => write!(f, "{}", newexpr),
         }
     }
 }
@@ -440,7 +452,9 @@ impl Display for FunctionLiteral {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "fn(")?;
         for (i, p) in self.params.iter().enumerate() {
-            if i > 0 { write!(f, ", ")?; }
+            if i > 0 {
+                write!(f, ", ")?;
+            }
             write!(f, "{}", p)?;
         }
         write!(f, ") {{")?;
@@ -471,7 +485,9 @@ impl Display for FunctionStatement {
 
         write!(f, "function {}(", self.name)?;
         for (i, p) in self.literal.params.iter().enumerate() {
-            if i > 0 { write!(f, ", ")?; }
+            if i > 0 {
+                write!(f, ", ")?;
+            }
             write!(f, "{}", p)?;
         }
         write!(f, ") {{")?;
@@ -520,14 +536,49 @@ impl Display for ImportStatement {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ClassStatement {
+    pub name: Identifier,
+    pub methods: Vec<FunctionStatement>,
+}
+
+impl Display for ClassStatement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "class {} {{", self.name)?;
+        for method in &self.methods {
+            write!(f, " {}", method)?;
+        }
+        write!(f, " }}")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct CallExpression {
-    pub function: Box<Expression>,    // identifier or fn literal
+    pub function: Box<Expression>, // identifier or fn literal
     pub arguments: Vec<Expression>,
 }
 
 impl Display for CallExpression {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}(", *self.function)?;
+        for (i, arg) in self.arguments.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", arg)?;
+        }
+        write!(f, ")")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NewExpression {
+    pub class_name: Identifier,
+    pub arguments: Vec<Expression>,
+}
+
+impl Display for NewExpression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "new {}(", self.class_name)?;
         for (i, arg) in self.arguments.iter().enumerate() {
             if i > 0 {
                 write!(f, ", ")?;
@@ -589,7 +640,9 @@ mod tests {
     #[test]
     fn program_display_renders_let() {
         let stmt = Statement::Let(LetStatement {
-            name: Identifier { value: "x".to_string() },
+            name: Identifier {
+                value: "x".to_string(),
+            },
             value: Expression::IntegerLiteral(IntegerLiteral { value: 5 }),
         });
 
